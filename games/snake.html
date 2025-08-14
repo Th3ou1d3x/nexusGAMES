@@ -43,6 +43,22 @@
     color: var(--muted);
   }
   .stats b { color: #fff; }
+  .back-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 10px;
+    background: #101427;
+    color: #e5e7eb;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    font-size: 14px;
+    text-decoration: none;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06);
+    transition: background 0.2s, transform 0.05s;
+  }
+  .back-btn:hover { background: #0c1022; }
+  .back-btn:active { transform: translateY(1px); }
   .panel {
     background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
     border: 1px solid rgba(255,255,255,0.08);
@@ -60,7 +76,6 @@
     image-rendering: pixelated;
     aspect-ratio: 1 / 1;
   }
-  /* Floating D-pad */
   .controls {
     position: absolute;
     bottom: 12px;
@@ -72,11 +87,7 @@
     user-select: none;
     z-index: 10;
   }
-  .controls .row {
-    display: flex;
-    gap: 6px;
-    justify-content: center;
-  }
+  .controls .row { display: flex; gap: 6px; justify-content: center; }
   .controls .btn {
     min-width: 48px;
     min-height: 48px;
@@ -91,9 +102,9 @@
     transition: transform .05s ease, background .2s ease, border-color .2s ease;
     touch-action: manipulation;
   }
-  .controls .btn:active {
-    transform: translateY(1px);
-    background: #0c1022;
+  .controls .btn:active { transform: translateY(1px); background: #0c1022; }
+  @media (min-width: 769px) {
+    .controls { display: none; }
   }
   .toolbar {
     margin-top: 10px;
@@ -137,6 +148,7 @@
 <body>
 <div class="wrap">
   <header>
+    <a href="/" class="back-btn">&larr; Back</a>
     <h1>Snake</h1>
     <div class="stats">
       <span>Score: <b id="score">0</b></span>
@@ -148,7 +160,6 @@
   <div class="panel screen">
     <canvas id="game" width="480" height="480"></canvas>
 
-    <!-- Overlays -->
     <div class="overlay" id="startOverlay">
       <div class="notice">
         <h2>Ready?</h2>
@@ -171,7 +182,6 @@
       </div>
     </div>
 
-    <!-- Floating D-Pad -->
     <div class="controls">
       <div class="row"><button class="btn" id="btnUp">&uarr;</button></div>
       <div class="row">
@@ -194,43 +204,179 @@
 </div>
 
 <script>
-  const GRID=24,BASE_SPEED=7,SPEED_STEP=1,SPEED_LIMIT=[3,20],GROWTH=1,STORAGE_KEY='snake-best-v1';
-  const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
-  function fitCanvasToCSS(){const r=canvas.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,2);canvas.width=Math.round(r.width*dpr);canvas.height=Math.round(r.height*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);}
-  new ResizeObserver(fitCanvasToCSS).observe(canvas);fitCanvasToCSS();
-  const ui={score:score,best:best,speedTag:speedTag,startOverlay:startOverlay,pauseOverlay:pauseOverlay,gameOverOverlay:gameOverOverlay,startBtn:startBtn,resumeBtn:resumeBtn,restartBtn:restartBtn,btnRestart:btnRestart,btnUp:btnUp,btnDown:btnDown,btnLeft:btnLeft,btnRight:btnRight,pauseBtn:pauseBtn,slowBtn:slowBtn,fastBtn:fastBtn};
-  let snake,dir,nextDir,food,scoreVal,bestVal,speed,grow;let running=false,paused=false,gameOver=false,acc=0,last=performance.now();
-  function randInt(m,n){return Math.floor(Math.random()*(n-m+1))+m;}
-  function placeFood(){const e=[],o=new Set(snake.map(s=>s.x+','+s.y));for(let y=0;y<GRID;y++)for(let x=0;x<GRID;x++)if(!o.has(`${x},${y}`))e.push({x,y});food=e.length?e[randInt(0,e.length-1)]:null;}
-  function reset(){const cX=Math.floor(GRID/2),cY=Math.floor(GRID/2);snake=[{x:cX,y:cY},{x:cX-1,y:cY},{x:cX-2,y:cY}];dir={x:1,y:0};nextDir={...dir};scoreVal=0;grow=0;speed=BASE_SPEED;placeFood();gameOver=false;paused=false;updateUI();}
-  function updateUI(){ui.score.textContent=scoreVal;ui.best.textContent=bestVal;ui.speedTag.textContent=`Speed: ${speed.toFixed(0)}x`;ui.startOverlay.style.display=(!running&&!gameOver)?'': 'none';ui.pauseOverlay.style.display=(running&&paused)?'':'none';ui.gameOverOverlay.style.display=(gameOver)?'':'none';ui.pauseBtn.textContent=paused?'Resume':'Pause';}
-  const KEY={LEFT:['ArrowLeft','KeyA'],RIGHT:['ArrowRight','KeyD'],UP:['ArrowUp','KeyW'],DOWN:['ArrowDown','KeyS'],PAUSE:['Space'],RESTART:['Enter']};
-  function setDirection(x,y){if(x!==-dir.x||y!==-dir.y)nextDir={x,y};}
-  window.addEventListener('keydown',e=>{const k=e.code;if(KEY.LEFT.includes(k))setDirection(-1,0);else if(KEY.RIGHT.includes(k))setDirection(1,0);else if(KEY.UP.includes(k))setDirection(0,-1);else if(KEY.DOWN.includes(k))setDirection(0,1);else if(KEY.PAUSE.includes(k))togglePause();else if(KEY.RESTART.includes(k)&&(!running||gameOver))startGame();});
-  ui.btnUp.onclick=()=>setDirection(0,-1);ui.btnDown.onclick=()=>setDirection(0,1);ui.btnLeft.onclick=()=>setDirection(-1,0);ui.btnRight.onclick=()=>setDirection(1,0);ui.btnRestart.onclick=()=>startGame();
-  ui.pauseBtn.onclick=()=>togglePause();ui.startBtn.onclick=()=>startGame();ui.resumeBtn.onclick=()=>togglePause(false);ui.restartBtn.onclick=()=>startGame();
-  ui.slowBtn.onclick=()=>{speed=Math.max(SPEED_LIMIT[0],speed-SPEED_STEP);updateUI();};ui.fastBtn.onclick=()=>{speed=Math.min(SPEED_LIMIT[1],speed+SPEED_STEP);updateUI();};
-  function startGame(){
-    bestVal=parseInt(localStorage.getItem(STORAGE_KEY)||'0',10);
-    reset();
-    running=true;
-    gameOver=false;
-    paused=false;
-    ui.startOverlay.style.display='none';
-    ui.pauseOverlay.style.display='none';
-    ui.gameOverOverlay.style.display='none';
-    last=performance.now();
-    acc=0;
-    requestAnimationFrame(loop);
+/* === GAME SETTINGS === */
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+const gridSize = 20;
+const tileCount = canvas.width / gridSize;
+
+let snake, food, dx, dy, score, best, speed, gameOver, running, paused;
+const STORAGE_KEY = "snake_best";
+
+/* === GAME INIT === */
+function reset() {
+  snake = [{ x: 10, y: 10 }];
+  dx = 1; dy = 0;
+  placeFood();
+  score = 0;
+  speed = 8;
+  gameOver = false;
+}
+
+function placeFood() {
+  food = {
+    x: Math.floor(Math.random() * tileCount),
+    y: Math.floor(Math.random() * tileCount)
+  };
+}
+
+function startGame() {
+  best = parseInt(localStorage.getItem(STORAGE_KEY) || "0", 10);
+  reset();
+  running = true;
+  paused = false;
+  ui.startOverlay.style.display = "none";
+  ui.pauseOverlay.style.display = "none";
+  ui.gameOverOverlay.style.display = "none";
+  last = performance.now();
+  acc = 0;
+  requestAnimationFrame(loop);
+  updateUI();
+}
+
+function endGame() {
+  running = false;
+  gameOver = true;
+  updateUI();
+}
+
+/* === UI === */
+const ui = {
+  score: document.getElementById("score"),
+  best: document.getElementById("best"),
+  speedTag: document.getElementById("speedTag"),
+  startOverlay: document.getElementById("startOverlay"),
+  pauseOverlay: document.getElementById("pauseOverlay"),
+  gameOverOverlay: document.getElementById("gameOverOverlay"),
+  pauseBtn: document.getElementById("pauseBtn")
+};
+
+function updateUI() {
+  ui.score.textContent = score;
+  ui.best.textContent = best;
+  ui.speedTag.textContent = `Speed: ${speed.toFixed(0)}x`;
+
+  if (gameOver) {
+    ui.startOverlay.style.display = "none";
+    ui.gameOverOverlay.style.display = "";
+    ui.pauseOverlay.style.display = "none";
+  } else if (!running) {
+    ui.startOverlay.style.display = "";
+    ui.pauseOverlay.style.display = "none";
+    ui.gameOverOverlay.style.display = "none";
+  } else {
+    ui.startOverlay.style.display = "none";
+    ui.pauseOverlay.style.display = paused ? "" : "none";
+    ui.gameOverOverlay.style.display = "none";
+  }
+
+  ui.pauseBtn.textContent = paused ? "Resume" : "Pause";
+}
+
+/* === GAME LOOP === */
+let last = 0;
+let acc = 0;
+
+function loop(timestamp) {
+  if (!running) return;
+  const delta = (timestamp - last) / 1000;
+  last = timestamp;
+  acc += delta;
+
+  if (acc > 1 / speed) {
+    acc = 0;
+    update();
+    draw();
+  }
+  requestAnimationFrame(loop);
+}
+
+function update() {
+  const head = { x: snake[0].x + dx, y: snake[0].y + dy };
+
+  if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount ||
+      snake.some(s => s.x === head.x && s.y === head.y)) {
+    return endGame();
+  }
+
+  snake.unshift(head);
+
+  if (head.x === food.x && head.y === food.y) {
+    score++;
+    if (score > best) {
+      best = score;
+      localStorage.setItem(STORAGE_KEY, best);
+    }
+    placeFood();
+    speed += 0.2;
+  } else {
+    snake.pop();
+  }
+}
+
+function draw() {
+  ctx.fillStyle = "#161a2b";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = "#ef4444";
+  ctx.fillRect(food.x * gridSize, food.y * gridSize, gridSize, gridSize);
+
+  snake.forEach((s, i) => {
+    ctx.fillStyle = i === 0 ? "#a78bfa" : "#8b5cf6";
+    ctx.fillRect(s.x * gridSize, s.y * gridSize, gridSize - 1, gridSize - 1);
+  });
+}
+
+/* === CONTROLS === */
+document.addEventListener("keydown", e => {
+  if (e.key === "ArrowUp" && dy === 0) { dx = 0; dy = -1; }
+  if (e.key === "ArrowDown" && dy === 0) { dx = 0; dy = 1; }
+  if (e.key === "ArrowLeft" && dx === 0) { dx = -1; dy = 0; }
+  if (e.key === "ArrowRight" && dx === 0) { dx = 1; dy = 0; }
+  if (e.key === "Enter") {
+    if (!running || gameOver) startGame();
+  }
+  if (e.key === " ") {
+    if (running && !gameOver) {
+      paused = !paused;
+      if (!paused) requestAnimationFrame(loop);
+      updateUI();
+    }
+  }
+});
+
+/* Mobile buttons */
+document.getElementById("btnUp").onclick = () => { if (dy === 0) { dx = 0; dy = -1; } };
+document.getElementById("btnDown").onclick = () => { if (dy === 0) { dx = 0; dy = 1; } };
+document.getElementById("btnLeft").onclick = () => { if (dx === 0) { dx = -1; dy = 0; } };
+document.getElementById("btnRight").onclick = () => { if (dx === 0) { dx = 1; dy = 0; } };
+document.getElementById("btnRestart").onclick = () => startGame();
+
+document.getElementById("startBtn").onclick = () => startGame();
+document.getElementById("resumeBtn").onclick = () => { paused = false; requestAnimationFrame(loop); updateUI(); };
+document.getElementById("restartBtn").onclick = () => startGame();
+
+document.getElementById("pauseBtn").onclick = () => {
+  if (running && !gameOver) {
+    paused = !paused;
+    if (!paused) requestAnimationFrame(loop);
     updateUI();
   }
-  function togglePause(force){if(!running||gameOver)return;paused=typeof force==='boolean'?!force?false:true:!paused;updateUI();if(!paused){last=performance.now();requestAnimationFrame(loop);}}
-  function loop(now){if(!running||paused)return;const step=1000/Math.max(1,speed);acc+=now-last;last=now;while(acc>=step){update();acc-=step;}draw();requestAnimationFrame(loop);}
-  function update(){dir=nextDir;const h=snake[0],nx=h.x+dir.x,ny=h.y+dir.y;if(nx<0||ny<0||nx>=GRID||ny>=GRID)return endGame();for(let s of snake)if(s.x===nx&&s.y===ny)return endGame();snake.unshift({x:nx,y:ny});if(food&&nx===food.x&&ny===food.y){scoreVal++;grow+=GROWTH;if(scoreVal%5===0)speed=Math.min(SPEED_LIMIT[1],speed+1);placeFood();if(scoreVal>bestVal){bestVal=scoreVal;localStorage.setItem(STORAGE_KEY,bestVal);}updateUI();}if(grow>0)grow--;else snake.pop();}
-  function endGame(){running=false;gameOver=true;ui.gameOverOverlay.style.display='';updateUI();}
-  function draw(){const w=canvas.clientWidth,h=canvas.clientHeight,cell=Math.min(w,h)/GRID;ctx.clearRect(0,0,w,h);ctx.fillStyle='#0e1328';ctx.fillRect(0,0,w,h);ctx.strokeStyle=getComputedStyle(document.documentElement).getPropertyValue('--grid').trim();ctx.lineWidth=1;ctx.beginPath();for(let i=1;i<GRID;i++){const p=i*cell+0.5;ctx.moveTo(p,0);ctx.lineTo(p,h);ctx.moveTo(0,p);ctx.lineTo(w,p);}ctx.stroke();if(food)drawCell(food.x,food.y,cell,'#ef4444');for(let i=snake.length-1;i>=0;i--)drawCell(snake[i].x,snake[i].y,cell,i===0?'#a78bfa':'#8b5cf6');}
-  function drawCell(x,y,size,color){const px=x*size,py=y*size,r=Math.max(2,size*0.18);ctx.fillStyle=color;ctx.beginPath();ctx.moveTo(px+r,py);ctx.arcTo(px+size,py,px+size,py+size,r);ctx.arcTo(px+size,py+size,px,py+size,r);ctx.arcTo(px,py+size,px,py,r);ctx.arcTo(px,py,px+size,py,r);ctx.closePath();ctx.fill();}
-  (function init(){bestVal=parseInt(localStorage.getItem(STORAGE_KEY)||'0',10);updateUI();draw();})();
+};
+document.getElementById("slowBtn").onclick = () => { speed = Math.max(1, speed - 1); updateUI(); };
+document.getElementById("fastBtn").onclick = () => { speed += 1; updateUI(); };
+
+updateUI();
 </script>
 </body>
 </html>
