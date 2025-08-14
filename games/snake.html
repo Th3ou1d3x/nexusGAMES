@@ -60,24 +60,6 @@
     image-rendering: pixelated;
     aspect-ratio: 1 / 1;
   }
-  /* Back button */
-  .back-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 6px 10px;
-    background: #101427;
-    color: #e5e7eb;
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 8px;
-    font-size: 14px;
-    text-decoration: none;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06);
-    transition: background 0.2s, transform 0.05s;
-    white-space: nowrap;
-  }
-  .back-btn:hover { background: #0c1022; }
-  .back-btn:active { transform: translateY(1px); }
   /* Floating D-pad */
   .controls {
     position: absolute;
@@ -155,7 +137,6 @@
 <body>
 <div class="wrap">
   <header>
-    <a href="/" class="back-btn">&larr; Back</a>
     <h1>Snake</h1>
     <div class="stats">
       <span>Score: <b id="score">0</b></span>
