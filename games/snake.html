@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <title>Snake</title>
+<link rel="icon" href="/favicon.ico">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
 <style>
   :root {
@@ -11,144 +12,34 @@
     --snake: #8b5cf6;
     --snake-head: #a78bfa;
     --food: #ef4444;
-    --grid: #262b45;
     --text: #e5e7eb;
     --muted: #9ca3af;
   }
   * { box-sizing: border-box; }
-  html, body { height: 100%; }
-  body {
-    margin: 0;
-    font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
-    background: radial-gradient(1200px 800px at 70% -10%, #1d2241 0%, var(--bg) 60%) no-repeat fixed;
-    color: var(--text);
-    display: grid;
-    place-items: center;
-    padding: 16px;
-  }
-  .wrap { width: min(92vw, 520px); position: relative; }
-
-  /* Header: left(back) | center(title) | right(stats) */
-  header {
-    display: grid;
-    grid-template-columns: auto 1fr auto;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 12px;
-  }
-  h1 { font-size: 20px; margin: 0; color: #fff; text-align: center; }
-  .stats {
-    display: flex;
-    gap: 12px;
-    align-items: center;
-    font-size: 14px;
-    color: var(--muted);
-  }
+  html, body { height: 100%; margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; background: radial-gradient(1200px 800px at 70% -10%, #1d2241 0%, var(--bg) 60%) no-repeat fixed; color: var(--text); display: flex; flex-direction: column; align-items: center; padding: 16px; }
+  .wrap { width: min(92vw, 520px); }
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  h1 { font-size: 20px; margin: 0; color: #fff; text-align: center; flex-grow: 1; }
+  .stats { display: flex; gap: 12px; align-items: center; font-size: 14px; color: var(--muted); }
   .stats b { color: #fff; }
-  .back-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 6px 10px;
-    background: #101427;
-    color: #e5e7eb;
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 8px;
-    font-size: 14px;
-    text-decoration: none;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06);
-    transition: background 0.2s, transform 0.05s;
-    white-space: nowrap;
+  .back-btn { padding: 6px 10px; background: #101427; color: #e5e7eb; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; font-size: 14px; text-decoration: none; box-shadow: 0 4px 10px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06); }
+  .panel { position: relative; background: var(--panel); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; overflow: hidden; }
+  canvas { display: block; width: 100%; height: auto; background: var(--panel); image-rendering: pixelated; aspect-ratio: 1 / 1; }
+  .controls { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .controls .row { display: flex; gap: 6px; }
+  .controls .btn { min-width: 48px; min-height: 48px; font-size: 20px; background: #101427; color: #e5e7eb; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 10px 12px; cursor: pointer; }
+  @media (max-width: 768px) {
+    .controls { position: absolute; bottom: 10px; right: 10px; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 12px; }
   }
-  .back-btn:hover { background: #0c1022; }
-  .back-btn:active { transform: translateY(1px); }
-
-  .panel {
-    background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 14px;
-    padding: 12px;
-    box-shadow: 0 20px 50px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06);
-    position: relative;
+  @media (min-width: 769px) {
+    .controls { position: static; margin-top: 10px; background: none; padding: 0; }
   }
-  canvas {
-    display: block;
-    width: 100%;
-    height: auto;
-    border-radius: 10px;
-    background: var(--panel);
-    image-rendering: pixelated;
-    aspect-ratio: 1 / 1;
-  }
-
-  /* Overlays */
-  .overlay {
-    position: absolute;
-    inset: 12px; /* match panel padding so it sits over canvas area */
-    display: grid;
-    place-items: center;
-    pointer-events: none;
-  }
-  .notice {
-    background: rgba(15,18,32,0.8);
-    border: 1px solid rgba(255,255,255,0.08);
-    padding: 18px 16px;
-    border-radius: 12px;
-    text-align: center;
-    max-width: 90%;
-    pointer-events: auto;
-  }
+  .toolbar { margin-top: 10px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--muted); }
+  .tag { font-size: 11px; padding: 4px 8px; background: rgba(148,163,184,0.14); border: 1px solid rgba(148,163,184,0.22); color: #cbd5e1; border-radius: 999px; }
+  .overlay { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
+  .notice { background: rgba(15,18,32,0.8); border: 1px solid rgba(255,255,255,0.08); padding: 18px 16px; border-radius: 12px; text-align: center; max-width: 90%; pointer-events: auto; }
   .notice h2 { margin: 0 0 6px; font-size: 20px; color: #fff; }
   .notice p { margin: 0 0 12px; color: var(--muted); font-size: 14px; }
-  .notice .row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
-
-  /* D-pad under the canvas */
-  .controls {
-    margin-top: 12px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    user-select: none;
-  }
-  .controls .row {
-    display: flex;
-    gap: 8px;
-    justify-content: center;
-  }
-  .controls .btn {
-    min-width: 50px;
-    min-height: 50px;
-    font-size: 20px;
-    background: #101427;
-    color: #e5e7eb;
-    border: 1px solid rgba(255,255,255,0.08);
-    box-shadow: 0 8px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06);
-    border-radius: 10px;
-    padding: 10px 12px;
-    cursor: pointer;
-    transition: transform .05s ease, background .2s ease, border-color .2s ease;
-    touch-action: manipulation;
-  }
-  .controls .btn:active { transform: translateY(1px); background: #0c1022; }
-
-  .toolbar {
-    margin-top: 10px;
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-  }
-  .hint { font-size: 12px; color: var(--muted); }
-  .tag {
-    font-size: 11px;
-    padding: 4px 8px;
-    background: rgba(148,163,184,0.14);
-    border: 1px solid rgba(148,163,184,0.22);
-    color: #cbd5e1;
-    border-radius: 999px;
-  }
 </style>
 </head>
 <body>
@@ -165,45 +56,32 @@
 
   <div class="panel">
     <canvas id="game" width="480" height="480"></canvas>
-
-    <!-- Overlays (centered over canvas) -->
     <div class="overlay" id="startOverlay">
       <div class="notice">
         <h2>Ready?</h2>
-        <p>Press <b>Enter</b> or tap <b>Start</b> to play.<br>Use <b>Arrow Keys / WASD</b> or swipe.</p>
-        <div class="row"><button class="btn" id="startBtn">Start</button></div>
-      </div>
-    </div>
-    <div class="overlay" id="pauseOverlay" style="display:none;">
-      <div class="notice">
-        <h2>Paused</h2>
-        <p>Press <b>Space</b> or tap <b>Resume</b>.</p>
-        <div class="row"><button class="btn" id="resumeBtn">Resume</button></div>
+        <p>Press <b>Enter</b> or tap <b>Start</b> to play.</p>
+        <button id="startBtn">Start</button>
       </div>
     </div>
     <div class="overlay" id="gameOverOverlay" style="display:none;">
       <div class="notice">
         <h2>Game Over</h2>
-        <p>Press <b>Enter</b> or tap <b>Restart</b>.</p>
-        <div class="row"><button class="btn" id="restartBtn">Restart</button></div>
+        <button id="restartBtn">Restart</button>
+      </div>
+    </div>
+    <div class="controls">
+      <div class="row"><button class="btn" id="btnUp">&uarr;</button></div>
+      <div class="row">
+        <button class="btn" id="btnLeft">&larr;</button>
+        <button class="btn" id="btnDown">&darr;</button>
+        <button class="btn" id="btnRight">&rarr;</button>
       </div>
     </div>
   </div>
 
-  <!-- D-Pad under the canvas (diamond layout) -->
-  <div class="controls">
-    <div class="row"><button class="btn" id="btnUp">&uarr;</button></div>
-    <div class="row">
-      <button class="btn" id="btnLeft">&larr;</button>
-      <button class="btn" id="btnDown">&darr;</button>
-      <button class="btn" id="btnRight">&rarr;</button>
-    </div>
-    <div class="row"><button class="btn" id="btnRestart">Restart</button></div>
-  </div>
-
   <div class="toolbar">
-    <div class="hint">Pause: Space | Restart: Enter</div>
-    <div class="row">
+    <div>Pause: Space | Restart: Enter</div>
+    <div>
       <button class="btn" id="pauseBtn">Pause</button>
       <button class="btn" id="slowBtn">- Speed</button>
       <button class="btn" id="fastBtn">+ Speed</button>
@@ -212,51 +90,24 @@
 </div>
 
 <script>
-/* === GAME SETTINGS === */
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
-const gridSize = 20;              // pixels per cell
-const tileCount = canvas.width / gridSize; // 480/20 = 24
-
+const gridSize = 20;
+const tileCount = canvas.width / gridSize;
 let snake, food, dx, dy, score, best, speed, gameOver, running, paused;
 const STORAGE_KEY = "snake_best";
 
-/* === UTIL: rounded rect === */
-function roundRectPath(x, y, w, h, r) {
-  const radius = Math.min(r, w/2, h/2);
-  ctx.beginPath();
-  ctx.moveTo(x + radius, y);
-  ctx.arcTo(x + w, y, x + w, y + h, radius);
-  ctx.arcTo(x + w, y + h, x, y + h, radius);
-  ctx.arcTo(x, y + h, x, y, radius);
-  ctx.arcTo(x, y, x + w, y, radius);
-  ctx.closePath();
-}
-
-/* === GAME INIT === */
 function reset() {
-  snake = [{ x: Math.floor(tileCount/2), y: Math.floor(tileCount/2) }];
-  // start with 2 extra tail segments to feel like a snake
-  snake.push({x: snake[0].x - 1, y: snake[0].y});
-  snake.push({x: snake[0].x - 2, y: snake[0].y});
-
+  snake = [{ x: 10, y: 10 }];
   dx = 1; dy = 0;
   placeFood();
   score = 0;
-  speed = 8; // ticks per second
+  speed = 8;
   gameOver = false;
 }
 
 function placeFood() {
-  // avoid placing on the snake
-  let spot;
-  do {
-    spot = {
-      x: Math.floor(Math.random() * tileCount),
-      y: Math.floor(Math.random() * tileCount)
-    };
-  } while (snake.some(s => s.x === spot.x && s.y === spot.y));
-  food = spot;
+  food = { x: Math.floor(Math.random() * tileCount), y: Math.floor(Math.random() * tileCount) };
 }
 
 function startGame() {
@@ -264,12 +115,8 @@ function startGame() {
   reset();
   running = true;
   paused = false;
-
-  // Hide overlays
   ui.startOverlay.style.display = "none";
-  ui.pauseOverlay.style.display = "none";
   ui.gameOverOverlay.style.display = "none";
-
   last = performance.now();
   acc = 0;
   requestAnimationFrame(loop);
@@ -282,13 +129,11 @@ function endGame() {
   updateUI();
 }
 
-/* === UI === */
 const ui = {
   score: document.getElementById("score"),
   best: document.getElementById("best"),
   speedTag: document.getElementById("speedTag"),
   startOverlay: document.getElementById("startOverlay"),
-  pauseOverlay: document.getElementById("pauseOverlay"),
   gameOverOverlay: document.getElementById("gameOverOverlay"),
   pauseBtn: document.getElementById("pauseBtn")
 };
@@ -297,25 +142,11 @@ function updateUI() {
   ui.score.textContent = score;
   ui.best.textContent = best;
   ui.speedTag.textContent = `Speed: ${speed.toFixed(0)}x`;
-
-  if (gameOver) {
-    ui.startOverlay.style.display = "none";
-    ui.gameOverOverlay.style.display = "";
-    ui.pauseOverlay.style.display = "none";
-  } else if (!running) {
-    ui.startOverlay.style.display = "";
-    ui.pauseOverlay.style.display = "none";
-    ui.gameOverOverlay.style.display = "none";
-  } else {
-    ui.startOverlay.style.display = "none";
-    ui.pauseOverlay.style.display = paused ? "" : "none";
-    ui.gameOverOverlay.style.display = "none";
-  }
-
+  if (gameOver) { ui.gameOverOverlay.style.display = ""; }
+  else if (!running) { ui.startOverlay.style.display = ""; }
   ui.pauseBtn.textContent = paused ? "Resume" : "Pause";
 }
 
-/* === GAME LOOP === */
 let last = 0;
 let acc = 0;
 
@@ -324,8 +155,7 @@ function loop(timestamp) {
   const delta = (timestamp - last) / 1000;
   last = timestamp;
   acc += delta;
-
-  if (!paused && acc > 1 / speed) {
+  if (acc > 1 / speed) {
     acc = 0;
     update();
     draw();
@@ -333,114 +163,65 @@ function loop(timestamp) {
   requestAnimationFrame(loop);
 }
 
-/* === UPDATE / DRAW === */
 function update() {
   const head = { x: snake[0].x + dx, y: snake[0].y + dy };
-
-  // bounds or self-collision
-  if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount ||
-      snake.some(s => s.x === head.x && s.y === head.y)) {
+  if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount || snake.some(s => s.x === head.x && s.y === head.y)) {
     return endGame();
   }
-
   snake.unshift(head);
-
   if (head.x === food.x && head.y === food.y) {
     score++;
-    if (score > best) {
-      best = score;
-      localStorage.setItem(STORAGE_KEY, best);
-    }
+    if (score > best) { best = score; localStorage.setItem(STORAGE_KEY, best); }
     placeFood();
-    speed = Math.min(30, speed + 0.25);
+    speed += 0.2;
   } else {
     snake.pop();
   }
 }
 
+function roundRectPath(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
 function draw() {
-  // board
   ctx.fillStyle = "#161a2b";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  // optional subtle grid
-  ctx.strokeStyle = "#262b45";
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  for (let i = 1; i < tileCount; i++) {
-    const p = i * gridSize + 0.5;
-    ctx.moveTo(p, 0); ctx.lineTo(p, canvas.height);
-    ctx.moveTo(0, p); ctx.lineTo(canvas.width, p);
-  }
-  ctx.stroke();
-
-  // food (rounded)
   ctx.fillStyle = "#ef4444";
-  roundRectPath(food.x * gridSize + 1, food.y * gridSize + 1, gridSize - 2, gridSize - 2, 6);
+  roundRectPath(food.x * gridSize + 1, food.y * gridSize + 1, gridSize - 2, gridSize - 2, 3);
   ctx.fill();
-
-  // snake (rounded)
   for (let i = snake.length - 1; i >= 0; i--) {
-    const s = snake[i];
-    ctx.fillStyle = (i === 0) ? "#a78bfa" : "#8b5cf6";
-    roundRectPath(s.x * gridSize + 1, s.y * gridSize + 1, gridSize - 2, gridSize - 2, 6);
+    ctx.fillStyle = i === 0 ? "#a78bfa" : "#8b5cf6";
+    roundRectPath(snake[i].x * gridSize + 1, snake[i].y * gridSize + 1, gridSize - 2, gridSize - 2, 3);
     ctx.fill();
   }
 }
 
-/* === CONTROLS (Keyboard + Buttons) === */
 document.addEventListener("keydown", e => {
-  // prevent page scroll on arrows/space
-  if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].includes(e.key)) e.preventDefault();
-
-  // directions (Arrow keys)
-  if (e.key === "ArrowUp"   && dy === 0) { dx = 0; dy = -1; }
-  if (e.key === "ArrowDown" && dy === 0) { dx = 0; dy = 1; }
-  if (e.key === "ArrowLeft" && dx === 0) { dx = -1; dy = 0; }
-  if (e.key === "ArrowRight"&& dx === 0) { dx = 1; dy = 0; }
-
-  // directions (WASD by code for layout-agnostic behavior)
-  if (e.code === "KeyW" && dy === 0) { dx = 0; dy = -1; }
-  if (e.code === "KeyS" && dy === 0) { dx = 0; dy = 1; }
-  if (e.code === "KeyA" && dx === 0) { dx = -1; dy = 0; }
-  if (e.code === "KeyD" && dx === 0) { dx = 1; dy = 0; }
-
-  // restart
-  if (e.key === "Enter") {
-    if (!running || gameOver) startGame();
-  }
-  // pause
-  if (e.key === " ") {
-    if (running && !gameOver) {
-      paused = !paused;
-      if (!paused) requestAnimationFrame(loop);
-      updateUI();
-    }
-  }
+  if ((e.key === "ArrowUp" || e.key.toLowerCase() === "w") && dy === 0) { dx = 0; dy = -1; }
+  if ((e.key === "ArrowDown" || e.key.toLowerCase() === "s") && dy === 0) { dx = 0; dy = 1; }
+  if ((e.key === "ArrowLeft" || e.key.toLowerCase() === "a") && dx === 0) { dx = -1; dy = 0; }
+  if ((e.key === "ArrowRight" || e.key.toLowerCase() === "d") && dx === 0) { dx = 1; dy = 0; }
+  if (e.key === "Enter") { if (!running || gameOver) startGame(); }
+  if (e.key === " ") { if (running && !gameOver) { paused = !paused; if (!paused) requestAnimationFrame(loop); updateUI(); } }
 });
 
-/* Mobile/Click buttons */
 document.getElementById("btnUp").onclick = () => { if (dy === 0) { dx = 0; dy = -1; } };
 document.getElementById("btnDown").onclick = () => { if (dy === 0) { dx = 0; dy = 1; } };
 document.getElementById("btnLeft").onclick = () => { if (dx === 0) { dx = -1; dy = 0; } };
 document.getElementById("btnRight").onclick = () => { if (dx === 0) { dx = 1; dy = 0; } };
-document.getElementById("btnRestart").onclick = () => startGame();
 
-document.getElementById("startBtn").onclick = () => startGame();
-document.getElementById("resumeBtn").onclick = () => { paused = false; requestAnimationFrame(loop); updateUI(); };
-document.getElementById("restartBtn").onclick = () => startGame();
-
-document.getElementById("pauseBtn").onclick = () => {
-  if (running && !gameOver) {
-    paused = !paused;
-    if (!paused) requestAnimationFrame(loop);
-    updateUI();
-  }
-};
+document.getElementById("startBtn").onclick = startGame;
+document.getElementById("restartBtn").onclick = startGame;
+document.getElementById("pauseBtn").onclick = () => { if (running && !gameOver) { paused = !paused; if (!paused) requestAnimationFrame(loop); updateUI(); } };
 document.getElementById("slowBtn").onclick = () => { speed = Math.max(1, speed - 1); updateUI(); };
-document.getElementById("fastBtn").onclick = () => { speed = Math.min(60, speed + 1); updateUI(); };
+document.getElementById("fastBtn").onclick = () => { speed += 1; updateUI(); };
 
-/* Initial UI */
 updateUI();
 </script>
 </body>
