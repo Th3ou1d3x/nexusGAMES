@@ -14,16 +14,32 @@
       text-align: center;
     }
 
+    /* Always visible back button */
+    #always-back-btn {
+      position: fixed;
+      top: 15px;
+      left: 15px;
+      padding: 8px 15px;
+      background: #dc3545;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+      z-index: 1000;
+    }
+
     #game {
       position: relative;
-      margin: 20px auto;
+      margin: 50px auto 20px auto;
       width: 400px;
       height: 600px;
-      background: rgba(0, 0, 0, 0.4); /* transparent overlay */
+      background: rgba(0, 0, 0, 0.4);
       border: 3px solid white;
       border-radius: 10px;
       overflow: hidden;
-      backdrop-filter: blur(4px); /* subtle glass effect */
+      backdrop-filter: blur(4px);
+      touch-action: none; /* prevent scrolling on touch */
     }
 
     #basket {
@@ -34,6 +50,7 @@
       height: 30px;
       background: orange;
       border-radius: 5px;
+      box-shadow: 0 0 15px 5px rgba(255,165,0,0.8);
     }
 
     .star {
@@ -48,16 +65,77 @@
     #hud {
       margin-top: 10px;
     }
+
+    /* Overlays */
+    .overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: white;
+      font-size: 20px;
+      visibility: hidden;
+    }
+
+    .overlay.visible {
+      visibility: visible;
+    }
+
+    .overlay button {
+      margin: 10px;
+      padding: 10px 20px;
+      font-size: 16px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    #start-btn { background: #007bff; color: white; }
+    #restart-btn { background: #28a745; color: white; }
+    #back-btn { background: #dc3545; color: white; }
+    #resume-btn { background: #ffc107; color: black; }
   </style>
 </head>
 <body>
+  <!-- Always available Back button -->
+  <button id="always-back-btn">⬅ Back</button>
+
   <h1>🌟 Falling Stars 🌟</h1>
   <div id="game">
     <div id="basket"></div>
+
+    <!-- Start Screen -->
+    <div id="start-screen" class="overlay visible">
+      <h2>Welcome to Falling Stars</h2>
+      <p>Catch the stars with your basket. Don’t let them hit the ground!</p>
+      <button id="start-btn">Start Game</button>
+    </div>
+
+    <!-- Pause Screen -->
+    <div id="pause-screen" class="overlay">
+      <h2>⏸ Game Paused</h2>
+      <p>Press SPACE or tap Resume to continue</p>
+      <button id="resume-btn">Resume</button>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div id="game-over" class="overlay">
+      <p id="final-score"></p>
+      <p id="high-score-display"></p>
+      <button id="restart-btn">Restart</button>
+      <button id="back-btn">Back</button>
+    </div>
   </div>
   <div id="hud">
     <p>Score: <span id="score">0</span></p>
     <p>Lives: <span id="lives">3</span></p>
+    <p>High Score: <span id="high-score">0</span></p>
   </div>
 
   <audio id="catch-sfx" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
@@ -68,6 +146,19 @@
     const basket = document.getElementById("basket");
     const scoreEl = document.getElementById("score");
     const livesEl = document.getElementById("lives");
+    const highScoreEl = document.getElementById("high-score");
+
+    const startScreen = document.getElementById("start-screen");
+    const startBtn = document.getElementById("start-btn");
+    const pauseScreen = document.getElementById("pause-screen");
+    const resumeBtn = document.getElementById("resume-btn");
+    const gameOverScreen = document.getElementById("game-over");
+    const finalScoreEl = document.getElementById("final-score");
+    const highScoreDisplay = document.getElementById("high-score-display");
+    const restartBtn = document.getElementById("restart-btn");
+    const backBtn = document.getElementById("back-btn");
+    const alwaysBackBtn = document.getElementById("always-back-btn");
+
     const catchSfx = document.getElementById("catch-sfx");
     const missSfx = document.getElementById("miss-sfx");
 
@@ -77,22 +168,72 @@
     let gameWidth = 400;
     let gameHeight = 600;
 
-    let fallSpeed = 5;       // starting fall speed
-    let spawnRate = 1000;    // ms between spawns
+    let fallSpeed = 5;
+    let spawnRate = 1000;
     let spawnInterval;
 
-    // Move basket with arrow keys
+    let paused = false;
+    let keysPressed = {};
+    let moveSpeed = 6; // smooth movement speed
+
+    let highScore = localStorage.getItem("fallingStarsHighScore") || 0;
+    highScoreEl.textContent = highScore;
+
+    // Smooth movement (keyboard)
     document.addEventListener("keydown", e => {
-      if (e.key === "ArrowLeft") {
-        basketX = Math.max(0, basketX - 20);
-      } else if (e.key === "ArrowRight") {
-        basketX = Math.min(gameWidth - basket.offsetWidth, basketX + 20);
+      if (e.code === "Space") {
+        togglePause();
+      } else {
+        keysPressed[e.key.toLowerCase()] = true;
       }
-      basket.style.left = basketX + "px";
     });
 
-    // Spawn stars
+    document.addEventListener("keyup", e => {
+      keysPressed[e.key.toLowerCase()] = false;
+    });
+
+    // Mobile controls (touch left/right)
+    let touchInterval;
+    game.addEventListener("touchstart", e => {
+      if (paused) return;
+      const touchX = e.touches[0].clientX - game.getBoundingClientRect().left;
+      if (touchX < gameWidth / 2) {
+        keysPressed["a"] = true; // move left
+      } else {
+        keysPressed["d"] = true; // move right
+      }
+
+      clearInterval(touchInterval);
+      touchInterval = setInterval(() => {
+        if (keysPressed["a"]) basketX = Math.max(0, basketX - moveSpeed);
+        if (keysPressed["d"]) basketX = Math.min(gameWidth - basket.offsetWidth, basketX + moveSpeed);
+        basket.style.left = basketX + "px";
+      }, 30);
+    });
+
+    game.addEventListener("touchend", () => {
+      keysPressed["a"] = false;
+      keysPressed["d"] = false;
+      clearInterval(touchInterval);
+    });
+
+    // Movement loop
+    function moveBasket() {
+      if (!paused) {
+        if (keysPressed["arrowleft"] || keysPressed["a"]) {
+          basketX = Math.max(0, basketX - moveSpeed);
+        }
+        if (keysPressed["arrowright"] || keysPressed["d"]) {
+          basketX = Math.min(gameWidth - basket.offsetWidth, basketX + moveSpeed);
+        }
+        basket.style.left = basketX + "px";
+      }
+      requestAnimationFrame(moveBasket);
+    }
+    moveBasket();
+
     function createStar() {
+      if (paused) return;
       const star = document.createElement("div");
       star.classList.add("star");
       star.style.left = Math.floor(Math.random() * (gameWidth - 20)) + "px";
@@ -104,10 +245,10 @@
     function moveStar(star) {
       let starY = 0;
       let fall = setInterval(() => {
+        if (paused) return;
         starY += fallSpeed;
         star.style.top = starY + "px";
 
-        // Collision detection
         let starRect = star.getBoundingClientRect();
         let basketRect = basket.getBoundingClientRect();
 
@@ -132,31 +273,80 @@
           clearInterval(fall);
 
           if (lives <= 0) {
-            alert("Game Over! Final Score: " + score);
-            document.location.reload();
+            endGame();
           }
         }
       }, 30);
     }
 
-    // Adjust difficulty dynamically
     function adjustDifficulty() {
       if (score % 5 === 0) {
-        fallSpeed += 1; // faster falling
+        fallSpeed += 1;
       }
       if (score % 10 === 0) {
-        spawnRate = Math.max(300, spawnRate - 100); // faster spawning
+        spawnRate = Math.max(300, spawnRate - 100);
         clearInterval(spawnInterval);
         spawnInterval = setInterval(createStar, spawnRate);
       }
     }
 
-    // Start game loop
+    function endGame() {
+      clearInterval(spawnInterval);
+      gameOverScreen.classList.add("visible");
+      finalScoreEl.textContent = "Final Score: " + score;
+
+      if (score > highScore) {
+        highScore = score;
+        localStorage.setItem("fallingStarsHighScore", highScore);
+      }
+
+      highScoreDisplay.textContent = "High Score: " + highScore;
+      highScoreEl.textContent = highScore;
+    }
+
     function startGame() {
+      score = 0;
+      lives = 3;
+      fallSpeed = 5;
+      spawnRate = 1000;
+      scoreEl.textContent = score;
+      livesEl.textContent = lives;
+      paused = false;
       spawnInterval = setInterval(createStar, spawnRate);
     }
 
-    startGame();
+    function togglePause() {
+      if (gameOverScreen.classList.contains("visible")) return;
+      if (paused) {
+        paused = false;
+        pauseScreen.classList.remove("visible");
+      } else {
+        paused = true;
+        pauseScreen.classList.add("visible");
+      }
+    }
+
+    // Event Listeners
+    startBtn.addEventListener("click", () => {
+      startScreen.classList.remove("visible");
+      startGame();
+    });
+
+    resumeBtn.addEventListener("click", () => {
+      togglePause();
+    });
+
+    restartBtn.addEventListener("click", () => {
+      location.reload();
+    });
+
+    backBtn.addEventListener("click", () => {
+      window.location.href = "/";
+    });
+
+    alwaysBackBtn.addEventListener("click", () => {
+      window.location.href = "/";
+    });
   </script>
 </body>
 </html>
