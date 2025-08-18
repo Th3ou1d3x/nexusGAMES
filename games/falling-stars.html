@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Falling Stars Game</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: radial-gradient(1200px 800px at 70% -10%, #1d2241 0%, #0f1220 60%) no-repeat fixed;
+      overflow: hidden;
+      color: white;
+      text-align: center;
+    }
+
+    #game {
+      position: relative;
+      margin: 20px auto;
+      width: 400px;
+      height: 600px;
+      background: rgba(0, 0, 0, 0.4); /* transparent overlay */
+      border: 3px solid white;
+      border-radius: 10px;
+      overflow: hidden;
+      backdrop-filter: blur(4px); /* subtle glass effect */
+    }
+
+    #basket {
+      position: absolute;
+      bottom: 10px;
+      left: 170px;
+      width: 60px;
+      height: 30px;
+      background: orange;
+      border-radius: 5px;
+    }
+
+    .star {
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      background: yellow;
+      border-radius: 50%;
+      box-shadow: 0 0 10px yellow;
+    }
+
+    #hud {
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🌟 Falling Stars 🌟</h1>
+  <div id="game">
+    <div id="basket"></div>
+  </div>
+  <div id="hud">
+    <p>Score: <span id="score">0</span></p>
+    <p>Lives: <span id="lives">3</span></p>
+  </div>
+
+  <audio id="catch-sfx" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
+  <audio id="miss-sfx" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
+
+  <script>
+    const game = document.getElementById("game");
+    const basket = document.getElementById("basket");
+    const scoreEl = document.getElementById("score");
+    const livesEl = document.getElementById("lives");
+    const catchSfx = document.getElementById("catch-sfx");
+    const missSfx = document.getElementById("miss-sfx");
+
+    let score = 0;
+    let lives = 3;
+    let basketX = 170;
+    let gameWidth = 400;
+    let gameHeight = 600;
+
+    let fallSpeed = 5;       // starting fall speed
+    let spawnRate = 1000;    // ms between spawns
+    let spawnInterval;
+
+    // Move basket with arrow keys
+    document.addEventListener("keydown", e => {
+      if (e.key === "ArrowLeft") {
+        basketX = Math.max(0, basketX - 20);
+      } else if (e.key === "ArrowRight") {
+        basketX = Math.min(gameWidth - basket.offsetWidth, basketX + 20);
+      }
+      basket.style.left = basketX + "px";
+    });
+
+    // Spawn stars
+    function createStar() {
+      const star = document.createElement("div");
+      star.classList.add("star");
+      star.style.left = Math.floor(Math.random() * (gameWidth - 20)) + "px";
+      star.style.top = "0px";
+      game.appendChild(star);
+      moveStar(star);
+    }
+
+    function moveStar(star) {
+      let starY = 0;
+      let fall = setInterval(() => {
+        starY += fallSpeed;
+        star.style.top = starY + "px";
+
+        // Collision detection
+        let starRect = star.getBoundingClientRect();
+        let basketRect = basket.getBoundingClientRect();
+
+        if (
+          starRect.bottom >= basketRect.top &&
+          starRect.left < basketRect.right &&
+          starRect.right > basketRect.left
+        ) {
+          score++;
+          scoreEl.textContent = score;
+          catchSfx.currentTime = 0;
+          catchSfx.play();
+          game.removeChild(star);
+          clearInterval(fall);
+          adjustDifficulty();
+        } else if (starY > gameHeight) {
+          lives--;
+          livesEl.textContent = lives;
+          missSfx.currentTime = 0;
+          missSfx.play();
+          game.removeChild(star);
+          clearInterval(fall);
+
+          if (lives <= 0) {
+            alert("Game Over! Final Score: " + score);
+            document.location.reload();
+          }
+        }
+      }, 30);
+    }
+
+    // Adjust difficulty dynamically
+    function adjustDifficulty() {
+      if (score % 5 === 0) {
+        fallSpeed += 1; // faster falling
+      }
+      if (score % 10 === 0) {
+        spawnRate = Math.max(300, spawnRate - 100); // faster spawning
+        clearInterval(spawnInterval);
+        spawnInterval = setInterval(createStar, spawnRate);
+      }
+    }
+
+    // Start game loop
+    function startGame() {
+      spawnInterval = setInterval(createStar, spawnRate);
+    }
+
+    startGame();
+  </script>
+</body>
+</html>
