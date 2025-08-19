@@ -9,7 +9,7 @@
       margin: 0;
       font-family: Arial, sans-serif;
       background: radial-gradient(1200px 800px at 70% -10%, #1d2241 0%, #0f1220 60%) no-repeat fixed;
-      overflow: hidden;
+      overflow-x: hidden;
       color: white;
       text-align: center;
     }
@@ -29,9 +29,10 @@
       z-index: 1000;
     }
 
+    /* Game container */
     #game {
       position: relative;
-      margin: 50px auto 20px auto;
+      margin: 60px auto 20px auto;
       width: 400px;
       height: 600px;
       background: rgba(0, 0, 0, 0.4);
@@ -39,7 +40,8 @@
       border-radius: 10px;
       overflow: hidden;
       backdrop-filter: blur(4px);
-      touch-action: none; /* prevent scrolling on touch */
+      touch-action: none;
+      transform-origin: top center;
     }
 
     #basket {
@@ -100,6 +102,41 @@
     #restart-btn { background: #28a745; color: white; }
     #back-btn { background: #dc3545; color: white; }
     #resume-btn { background: #ffc107; color: black; }
+
+    /* Mobile controls */
+    #controls {
+      display: none; /* hidden on desktop */
+      position: absolute;
+      bottom: 10px;
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      padding: 0 30px;
+      box-sizing: border-box;
+    }
+
+    .arrow-btn {
+      background: rgba(255, 255, 255, 0.15);
+      border: 2px solid white;
+      border-radius: 50%;
+      width: 60px;
+      height: 60px;
+      font-size: 24px;
+      color: white;
+      cursor: pointer;
+      user-select: none;
+      opacity: 0.6; /* semi-transparent */
+      transition: opacity 0.2s;
+    }
+
+    .arrow-btn:active {
+      opacity: 1;
+    }
+
+    /* Show controls only on small screens */
+    @media (max-width: 600px) {
+      #controls { display: flex; }
+    }
   </style>
 </head>
 <body>
@@ -131,7 +168,14 @@
       <button id="restart-btn">Restart</button>
       <button id="back-btn">Back</button>
     </div>
+
+    <!-- Mobile Controls -->
+    <div id="controls">
+      <button id="left-btn" class="arrow-btn">⬅</button>
+      <button id="right-btn" class="arrow-btn">➡</button>
+    </div>
   </div>
+
   <div id="hud">
     <p>Score: <span id="score">0</span></p>
     <p>Lives: <span id="lives">3</span></p>
@@ -159,6 +203,9 @@
     const backBtn = document.getElementById("back-btn");
     const alwaysBackBtn = document.getElementById("always-back-btn");
 
+    const leftBtn = document.getElementById("left-btn");
+    const rightBtn = document.getElementById("right-btn");
+
     const catchSfx = document.getElementById("catch-sfx");
     const missSfx = document.getElementById("miss-sfx");
 
@@ -174,56 +221,28 @@
 
     let paused = false;
     let keysPressed = {};
-    let moveSpeed = 6; // smooth movement speed
+    let moveSpeed = 6;
 
     let highScore = localStorage.getItem("fallingStarsHighScore") || 0;
     highScoreEl.textContent = highScore;
 
-    // Smooth movement (keyboard)
-    document.addEventListener("keydown", e => {
-      if (e.code === "Space") {
-        togglePause();
-      } else {
-        keysPressed[e.key.toLowerCase()] = true;
-      }
-    });
+    // Scale game to fit screen
+    function resizeGame() {
+      const maxWidth = window.innerWidth * 0.9;
+      const maxHeight = window.innerHeight * 0.75;
+      const scale = Math.min(maxWidth / 400, maxHeight / 600, 1);
+      game.style.transform = `scale(${scale})`;
+    }
+    window.addEventListener("resize", resizeGame);
+    resizeGame();
 
-    document.addEventListener("keyup", e => {
-      keysPressed[e.key.toLowerCase()] = false;
-    });
-
-    // Mobile controls (touch left/right)
-    let touchInterval;
-    game.addEventListener("touchstart", e => {
-      if (paused) return;
-      const touchX = e.touches[0].clientX - game.getBoundingClientRect().left;
-      if (touchX < gameWidth / 2) {
-        keysPressed["a"] = true; // move left
-      } else {
-        keysPressed["d"] = true; // move right
-      }
-
-      clearInterval(touchInterval);
-      touchInterval = setInterval(() => {
-        if (keysPressed["a"]) basketX = Math.max(0, basketX - moveSpeed);
-        if (keysPressed["d"]) basketX = Math.min(gameWidth - basket.offsetWidth, basketX + moveSpeed);
-        basket.style.left = basketX + "px";
-      }, 30);
-    });
-
-    game.addEventListener("touchend", () => {
-      keysPressed["a"] = false;
-      keysPressed["d"] = false;
-      clearInterval(touchInterval);
-    });
-
-    // Movement loop
+    // Smooth movement loop
     function moveBasket() {
       if (!paused) {
-        if (keysPressed["arrowleft"] || keysPressed["a"]) {
+        if (keysPressed["arrowleft"] || keysPressed["a"] || keysPressed["left"]) {
           basketX = Math.max(0, basketX - moveSpeed);
         }
-        if (keysPressed["arrowright"] || keysPressed["d"]) {
+        if (keysPressed["arrowright"] || keysPressed["d"] || keysPressed["right"]) {
           basketX = Math.min(gameWidth - basket.offsetWidth, basketX + moveSpeed);
         }
         basket.style.left = basketX + "px";
@@ -232,6 +251,37 @@
     }
     moveBasket();
 
+    // Keyboard
+    document.addEventListener("keydown", e => {
+      if (e.code === "Space") {
+        togglePause();
+      } else {
+        keysPressed[e.key.toLowerCase()] = true;
+      }
+    });
+    document.addEventListener("keyup", e => {
+      keysPressed[e.key.toLowerCase()] = false;
+    });
+
+    // Mobile buttons
+    function holdButton(key) {
+      keysPressed[key] = true;
+    }
+    function releaseButton(key) {
+      keysPressed[key] = false;
+    }
+
+    leftBtn.addEventListener("touchstart", () => holdButton("left"));
+    leftBtn.addEventListener("touchend", () => releaseButton("left"));
+    rightBtn.addEventListener("touchstart", () => holdButton("right"));
+    rightBtn.addEventListener("touchend", () => releaseButton("right"));
+
+    leftBtn.addEventListener("mousedown", () => holdButton("left"));
+    leftBtn.addEventListener("mouseup", () => releaseButton("left"));
+    rightBtn.addEventListener("mousedown", () => holdButton("right"));
+    rightBtn.addEventListener("mouseup", () => releaseButton("right"));
+
+    // Game logic
     function createStar() {
       if (paused) return;
       const star = document.createElement("div");
@@ -332,21 +382,10 @@
       startGame();
     });
 
-    resumeBtn.addEventListener("click", () => {
-      togglePause();
-    });
-
-    restartBtn.addEventListener("click", () => {
-      location.reload();
-    });
-
-    backBtn.addEventListener("click", () => {
-      window.location.href = "/";
-    });
-
-    alwaysBackBtn.addEventListener("click", () => {
-      window.location.href = "/";
-    });
+    resumeBtn.addEventListener("click", () => togglePause());
+    restartBtn.addEventListener("click", () => location.reload());
+    backBtn.addEventListener("click", () => (window.location.href = "/"));
+    alwaysBackBtn.addEventListener("click", () => (window.location.href = "/"));
   </script>
 </body>
 </html>
