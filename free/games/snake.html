@@ -259,7 +259,7 @@ const ui = {
 function updateUI() {
   ui.score.textContent = score;
   ui.best.textContent = best;
-  ui.speedTag.textContent = `Speed: ${speed.toFixed(0)}x/8x`;
+  ui.speedTag.textContent = `Speed: ${speed.toFixed(0)}/8`;
   if (gameOver) { ui.gameOverOverlay.style.display = ""; }
   else if (!running) { ui.startOverlay.style.display = ""; }
   ui.pauseBtn.textContent = paused ? "Resume" : "Pause";
