@@ -161,7 +161,7 @@
 <body>
 <div class="wrap">
   <header>
-    <a href="/" class="back-btn">&larr; Back</a>
+    <a href="/free" class="back-btn">&larr; Back</a>
     <h1>Snake</h1>
     <div class="stats">
       <span>Score: <b id="score">0</b></span>
@@ -220,7 +220,7 @@ function reset() {
   dx = 1; dy = 0;
   placeFood();
   score = 0;
-  speed = 8;
+  speed = 4;
   gameOver = false;
 }
 
@@ -259,7 +259,7 @@ const ui = {
 function updateUI() {
   ui.score.textContent = score;
   ui.best.textContent = best;
-  ui.speedTag.textContent = `Speed: ${speed.toFixed(0)}x`;
+  ui.speedTag.textContent = `Speed: ${speed.toFixed(0)}x/8x`;
   if (gameOver) { ui.gameOverOverlay.style.display = ""; }
   else if (!running) { ui.startOverlay.style.display = ""; }
   ui.pauseBtn.textContent = paused ? "Resume" : "Pause";
