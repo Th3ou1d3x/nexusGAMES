@@ -16,31 +16,38 @@
   --speed:#f472b6;
 }
 *{box-sizing:border-box;}
-html,body{height:100%;margin:0;font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Arial;background:radial-gradient(1200px 800px at 70% -10%, #1d2241 0%, var(--bg) 60%) no-repeat fixed;color:var(--text);display:flex;flex-direction:column;align-items:center;padding:16px;}
+html,body{
+  height:100%;margin:0;
+  font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Arial;
+  background:radial-gradient(1200px 800px at 70% -10%, #1d2241 0%, var(--bg) 60%) no-repeat fixed;
+  color:var(--text);
+  display:flex;flex-direction:column;align-items:center;padding:16px;
+}
 .wrap{width:min(92vw,520px);}
 header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
 h1{font-size:20px;margin:0;color:#fff;text-align:center;flex-grow:1;}
 .stats{display:flex;gap:12px;align-items:center;font-size:14px;color:var(--muted);}
 .stats b{color:#fff;}
-.panel{position:relative;background:var(--panel);border:1px solid rgba(255,255,255,0.08);border-radius:14px;overflow:hidden;}
+.panel{
+  position:relative;background:var(--panel);
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:14px;overflow:hidden;
+}
 canvas{display:block;width:100%;height:auto;background:var(--panel);image-rendering:pixelated;aspect-ratio:1/1;}
 .controls{display:flex;flex-direction:row;justify-content:center;gap:6px;margin-top:16px;}
 .btn{min-width:48px;min-height:48px;font-size:20px;background:#101427;color:var(--text);border:1px solid rgba(255,255,255,0.08);border-radius:10px;cursor:pointer;}
-/* ✅ Fade & Centered Overlays */
+/* ✅ Fade + Zoom Animation */
 .overlay{
-  position:absolute;
-  inset:0;
-  display:flex;
-  align-items:center;
-  justify-content:center;
+  position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;
   background:rgba(0,0,0,0.3);
-  opacity:0;
-  pointer-events:none;
-  transition:opacity 0.5s ease;
+  opacity:0;pointer-events:none;
+  transform:scale(0.95);
+  transition:opacity 0.5s ease,transform 0.5s ease;
 }
 .overlay.active{
-  opacity:1;
-  pointer-events:auto;
+  opacity:1;pointer-events:auto;
+  transform:scale(1);
 }
 .notice{
   background:rgba(15,18,32,0.9);
@@ -219,11 +226,20 @@ function update(){
 
 function draw(){
   ctx.fillStyle="#161a2b"; ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // 🔹 Draw a marker every 50 platforms
   for(let i=0;i<platformCount;i+=50){
-    const markerY=platforms[0]?platforms[0].y-i*100-cameraY:0;
-    ctx.fillStyle="var(--marker)";
-    ctx.fillRect(0,markerY,canvas.width,4);
+    const markerY=platforms[0]?platforms[0].y - (i*100) - cameraY : 0;
+    if(markerY < canvas.height && markerY > -50){
+      ctx.strokeStyle="var(--marker)";
+      ctx.lineWidth=3;
+      ctx.beginPath();
+      ctx.moveTo(0, markerY);
+      ctx.lineTo(canvas.width, markerY);
+      ctx.stroke();
+    }
   }
+
   trail.forEach(t=>{
     ctx.beginPath();
     ctx.arc(t.x+t.size/2, t.y-cameraY+t.size/2, t.size/2, 0, Math.PI*2);
