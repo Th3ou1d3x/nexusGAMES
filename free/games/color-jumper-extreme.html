@@ -220,11 +220,21 @@ document.addEventListener("keydown",e=>{keys[e.key.toLowerCase()]=true;if(e.key=
 document.addEventListener("keyup",e=>{keys[e.key.toLowerCase()]=false;});
 
 // buttons
-document.getElementById("leftBtn").onclick=()=>keys["a"]=true; 
-document.getElementById("rightBtn").onclick=()=>keys["d"]=true;
-document.getElementById("jumpBtn").onclick=()=>{if(grounded){player.vy=jumpPower;grounded=false;}};
-document.getElementById("startBtn").onclick=startGame;
-document.getElementById("restartBtn").onclick=startGame;
+document.getElementById("leftBtn").addEventListener("click",()=>{
+    keys["a"]=true;
+    setTimeout(()=>{keys["a"]=false;},50); // short press
+});
+document.getElementById("rightBtn").addEventListener("click",()=>{
+    keys["d"]=true;
+    setTimeout(()=>{keys["d"]=false;},50);
+});
+document.getElementById("jumpBtn").addEventListener("click",()=>{
+    if(grounded){
+        player.vy=jumpPower;
+        grounded=false;
+    }
+});
+
 
 updateUI();
 </script>
