@@ -1,111 +1,218 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Space Invaders PyScript</title>
-    <link rel="stylesheet" href="https://pyscript.net/latest/pyscript.css" />
-    <script defer src="https://pyscript.net/latest/pyscript.js"></script>
-    <style>
-        canvas {
-            background: black;
-            display: block;
-            margin: auto;
-        }
-    </style>
+<meta charset="utf-8" />
+<title>Space Invaders Extreme</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<style>
+:root {
+  --bg:#0f1220;
+  --panel:#161a2b;
+  --text:#e5e7eb;
+  --muted:#9ca3af;
+  --marker:#f87171;
+  --jump:#3b82f6;
+  --score:#fbbf24;
+  --speed:#f472b6;
+}
+*{box-sizing:border-box;}
+html,body{height:100%;margin:0;font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Arial;background:radial-gradient(1200px 800px at 70% -10%, #1d2241 0%, var(--bg) 60%) no-repeat fixed;color:var(--text);display:flex;flex-direction:column;align-items:center;padding:16px;}
+.wrap{width:min(92vw,520px);}
+header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+h1{font-size:20px;margin:0;color:#fff;text-align:center;flex-grow:1;}
+.stats{display:flex;gap:12px;align-items:center;font-size:14px;color:var(--muted);}
+.stats b{color:#fff;}
+.panel{position:relative;background:var(--panel);border:1px solid rgba(255,255,255,0.08);border-radius:14px;overflow:hidden;}
+canvas{display:block;width:100%;height:auto;background:var(--panel);image-rendering:pixelated;aspect-ratio:1/1;}
+.controls{display:flex;flex-direction:row;justify-content:center;gap:6px;margin-top:16px;}
+.btn{min-width:48px;min-height:48px;font-size:20px;background:#101427;color:var(--text);border:1px solid rgba(255,255,255,0.08);border-radius:10px;cursor:pointer;}
+.overlay{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;}
+.notice{background:rgba(15,18,32,0.8);border:1px solid rgba(255,255,255,0.08);padding:18px 16px;border-radius:12px;text-align:center;max-width:90%;pointer-events:auto;}
+.notice h2{margin:0 0 6px;font-size:20px;color:#fff;}
+.notice p{margin:0 0 12px;color:var(--muted);font-size:14px;}
+.back-btn{text-decoration:none;color:#e5e7eb;padding:6px 10px;background:#101427;border-radius:8px;border:1px solid rgba(255,255,255,0.08);}
+</style>
 </head>
 <body>
-    <canvas id="gameCanvas" width="600" height="400"></canvas>
+<div class="wrap">
+<header>
+  <a href="/" class="back-btn">&larr; Back</a>
+  <h1>Space Invaders Extreme</h1>
+  <div class="stats">
+    <span>Score: <b id="score">0</b></span>
+    <span>Best: <b id="best">0</b></span>
+  </div>
+</header>
 
-    <py-script>
-import js
+<div class="panel">
+<canvas id="game" width="480" height="480"></canvas>
+<div class="overlay" id="startOverlay">
+<div class="notice">
+<h2>Ready?</h2>
+<p>Press <b>Enter</b> or click <b>Start</b> to play.</p>
+<button id="startBtn">Start</button>
+</div>
+</div>
+<div class="overlay" id="gameOverOverlay" style="display:none;">
+<div class="notice">
+<h2>Game Over</h2>
+<button id="restartBtn">Restart</button>
+</div>
+</div>
+</div>
 
-# --- Canvas Setup ---
-canvas = js.document.getElementById("gameCanvas")
-ctx = canvas.getContext("2d")
+<div class="controls">
+<button class="btn" id="leftBtn">&larr;</button>
+<button class="btn" id="shootBtn">&#8679;</button>
+<button class="btn" id="rightBtn">&rarr;</button>
+</div>
+</div>
 
-# --- Player ---
-player_x = 280
-player_y = 360
-player_speed = 10
+<script>
+// Canvas setup
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+let STORAGE_KEY="spaceInvaders_best";
 
-# --- Bullet ---
-bullet_x = 0
-bullet_y = 0
-bullet_speed = 8
-bullet_active = False
+const playerWidth = 40, playerHeight = 20, playerSpeed = 5;
+let player = {x:220, y:440, width:playerWidth, height:playerHeight};
+let bullet = null;
+let enemies = [];
+let enemySpeed = 1;
+let score = 0, best = parseInt(localStorage.getItem(STORAGE_KEY)||"0");
+let running=false;
 
-# --- Enemies ---
-enemies = [{"x": i*50, "y": 50} for i in range(10)]
-enemy_speed = 2
+// Create enemies
+function createEnemies(){
+  enemies = [];
+  for(let i=0;i<5;i++){
+    for(let j=0;j<8;j++){
+      enemies.push({x:20+j*50, y:20+i*40, width:40, height:20});
+    }
+  }
+}
 
-# --- Draw Functions ---
-def draw_player():
-    ctx.fillStyle = "green"
-    ctx.fillRect(player_x, player_y, 40, 20)
+// Reset game
+function reset(){
+  player.x=220; player.y=440;
+  bullet = null;
+  score=0;
+  enemySpeed=1;
+  createEnemies();
+}
 
-def draw_bullet():
-    if bullet_active:
-        ctx.fillStyle = "yellow"
-        ctx.fillRect(bullet_x, bullet_y, 5, 10)
+// Draw everything
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  // Player
+  ctx.fillStyle="green";
+  ctx.fillRect(player.x,player.y,player.width,player.height);
 
-def draw_enemies():
-    ctx.fillStyle = "red"
-    for e in enemies:
-        ctx.fillRect(e["x"], e["y"], 40, 20)
+  // Bullet
+  if(bullet){
+    ctx.fillStyle="yellow";
+    ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height);
+  }
 
-# --- Movement ---
-def move_bullet():
-    global bullet_y, bullet_active
-    if bullet_active:
-        bullet_y -= bullet_speed
-        if bullet_y < 0:
-            bullet_active = False
+  // Enemies
+  ctx.fillStyle="red";
+  enemies.forEach(e=>ctx.fillRect(e.x,e.y,e.width,e.height));
+}
 
-def move_enemies():
-    for e in enemies:
-        e["x"] += enemy_speed
-    if any(e["x"] > 560 or e["x"] < 0 for e in enemies):
-        for e in enemies:
-            e["y"] += 20
-        global enemy_speed
-        enemy_speed *= -1
+// Update game logic
+function update(){
+  // Move bullet
+  if(bullet){
+    bullet.y-=5;
+    // Collision with enemies
+    for(let i=enemies.length-1;i>=0;i--){
+      let e=enemies[i];
+      if(bullet.x<e.x+e.width && bullet.x+bullet.width>e.x &&
+         bullet.y<e.y+e.height && bullet.y+bullet.height>e.y){
+        enemies.splice(i,1);
+        bullet=null;
+        score+=10;
+        break;
+      }
+    }
+    if(bullet && bullet.y<0) bullet=null;
+  }
 
-def check_collision():
-    global bullet_active
-    for e in enemies:
-        if bullet_active and bullet_x < e["x"]+40 and bullet_x+5 > e["x"] and bullet_y < e["y"]+20 and bullet_y+10 > e["y"]:
-            enemies.remove(e)
-            bullet_active = False
-            break
+  // Move enemies
+  let hitEdge=false;
+  enemies.forEach(e=>{e.x+=enemySpeed;if(e.x<=0||e.x+e.width>=canvas.width) hitEdge=true;});
+  if(hitEdge){enemySpeed*=-1; enemies.forEach(e=>e.y+=10);}
 
-# --- Keyboard Controls ---
-def keydown(event):
-    global player_x, bullet_x, bullet_y, bullet_active
-    key = event.key
-    if key == "ArrowLeft":
-        player_x = max(0, player_x - player_speed)
-    elif key == "ArrowRight":
-        player_x = min(560, player_x + player_speed)
-    elif key == " ":
-        if not bullet_active:
-            bullet_x = player_x + 18
-            bullet_y = player_y
-            bullet_active = True
+  // Check game over
+  if(enemies.some(e=>e.y+e.height>=player.y)){
+    running=false;
+    if(score>best){best=score; localStorage.setItem(STORAGE_KEY,best);}
+    document.getElementById("gameOverOverlay").style.display="grid";
+  }
 
-js.document.addEventListener("keydown", keydown)
+  document.getElementById("score").textContent=score;
+  document.getElementById("best").textContent=best;
+}
 
-# --- Game Loop ---
-def game_loop(*args):
-    ctx.clearRect(0, 0, 600, 400)
-    draw_player()
-    draw_bullet()
-    draw_enemies()
-    move_bullet()
-    move_enemies()
-    check_collision()
-    js.requestAnimationFrame(game_loop)
+// Main loop
+function loop(){
+  if(!running) return;
+  draw();
+  update();
+  requestAnimationFrame(loop);
+}
 
-game_loop()
-    </py-script>
+// Keyboard input
+const keys={};
+document.addEventListener("keydown",e=>{
+  keys[e.key.toLowerCase()]=true;
+  if(e.key==="Enter" && !running){
+    startGame();
+  }
+});
+document.addEventListener("keyup",e=>{
+  keys[e.key.toLowerCase()]=false;
+});
+
+// Control player
+function handleInput(){
+  if(keys["arrowleft"]) player.x=Math.max(0, player.x-playerSpeed);
+  if(keys["arrowright"]) player.x=Math.min(canvas.width-player.width, player.x+playerSpeed);
+  if(keys["arrowup"] && !bullet) bullet={x:player.x+player.width/2-2.5,y:player.y-10,width:5,height:10};
+}
+
+// Buttons
+["leftBtn","rightBtn"].forEach(id=>{
+  const key=id==="leftBtn"?"arrowleft":"arrowright";
+  const btn=document.getElementById(id);
+  btn.addEventListener("mousedown",()=>keys[key]=true);
+  btn.addEventListener("mouseup",()=>keys[key]=false);
+  btn.addEventListener("touchstart",()=>keys[key]=true);
+  btn.addEventListener("touchend",()=>keys[key]=false);
+});
+document.getElementById("shootBtn").addEventListener("click",()=>{
+  if(!bullet) bullet={x:player.x+player.width/2-2.5,y:player.y-10,width:5,height:10};
+});
+
+// Start/restart
+function startGame(){
+  reset();
+  running=true;
+  document.getElementById("startOverlay").style.display="none";
+  document.getElementById("gameOverOverlay").style.display="none";
+  requestAnimationFrame(mainLoop);
+}
+
+document.getElementById("startBtn").onclick=startGame;
+document.getElementById("restartBtn").onclick=startGame;
+
+// Main loop wrapper to include input
+function mainLoop(){
+  if(!running) return;
+  handleInput();
+  loop();
+  requestAnimationFrame(mainLoop);
+}
+</script>
 </body>
 </html>
