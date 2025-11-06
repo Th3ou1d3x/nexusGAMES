@@ -151,7 +151,7 @@ const ui = {
   gameOverOverlay: document.getElementById("gameOverOverlay")
 };
 
-let player, playerColor, playerSize=20, playerSpeed=4, jumpPower=-10, gravity=0.4, grounded=false;
+let player, playerColor, playerSize=20, playerSpeed=4, jumpPower=-12, gravity=0.4, grounded=false;
 let platforms=[], platformCount=0, score=0, level=1, keys={}, running=false, gameOver=false;
 let cameraY=0, trail=[], floatTexts=[];
 
@@ -214,16 +214,16 @@ function update(){
   for(const p of platforms){
     if(player.x+playerSize>p.x && player.x<p.x+80 && player.y+playerSize>p.y && player.y+playerSize<p.y+10 && player.vy>0){
       player.y = p.y - playerSize;
-      player.vy = jumpPower;
+      player.vy = 0; // stop falling
       grounded = true;
 
       platformCount++;
       level = Math.floor(platformCount/50)+1;
 
       if(p.powerup){
-        if(p.powerup==="jump") player.vy = jumpPower*1.3;
+        if(p.powerup==="jump") jumpPower = -14;
         if(p.powerup==="score") addScore(10,player.x,player.y-cameraY);
-        if(p.powerup==="speed") playerSpeed += 0.5;
+        if(p.powerup==="speed") playerSpeed += 1;
         p.powerup = null;
       }
     }
@@ -232,29 +232,27 @@ function update(){
   // camera follows player
   if(player.y - cameraY < canvas.height/3) cameraY = player.y - canvas.height/3;
 
-  // spawn more platforms upward
+  // spawn more platforms
   const highest = platforms[platforms.length-1].y;
-  if(canvas.height - highest - cameraY < 800) createPlatform(highest - 100);
+  if(canvas.height - highest - cameraY < 800) createPlatform(platformCount*100);
 
-  // trail
-  trail.push({x:player.x, y:player.y, size:playerSize, alpha:0.5});
+  // update trail
+  trail.push({x:player.x,y:player.y,size:playerSize,alpha:0.5});
   if(trail.length>15) trail.shift();
 
-  // floating texts
-  floatTexts.forEach(t=>{ t.y-=1; t.alpha-=0.02; });
+  // update floating texts
+  floatTexts.forEach(t=>{t.y-=1;t.alpha-=0.02;});
   floatTexts = floatTexts.filter(t=>t.alpha>0);
 
   updateUI();
 }
 
-// update UI
 function updateUI(){
   ui.score.textContent = score;
   ui.platformCount.textContent = platformCount;
   ui.level.textContent = level;
 }
 
-// draw everything
 function draw(){
   ctx.fillStyle="#161a2b";
   ctx.fillRect(0,0,canvas.width,canvas.height);
@@ -262,10 +260,10 @@ function draw(){
   // glowing red markers
   ctx.save();
   for(let i=50;i<=platformCount;i+=50){
-    const markerY = canvas.height - i*100 + cameraY;
+    const markerY=canvas.height - i*100 + cameraY;
     if(markerY>-100 && markerY<canvas.height+100){
-      const pulse = Math.sin(Date.now()/300)*0.3+0.7;
-      ctx.fillStyle = `rgba(239,68,68,${pulse})`;
+      const pulse=Math.sin(Date.now()/300)*0.3+0.7;
+      ctx.fillStyle=`rgba(239,68,68,${pulse})`;
       ctx.shadowBlur=15;
       ctx.shadowColor="red";
       ctx.fillRect(0,markerY,canvas.width,4);
@@ -295,8 +293,8 @@ function draw(){
   // trail
   trail.forEach(t=>{
     ctx.beginPath();
-    ctx.arc(t.x+t.size/2, t.y-cameraY+t.size/2, t.size/2,0,Math.PI*2);
-    ctx.fillStyle=`rgba(255,255,255,${t.alpha})`;
+    ctx.arc(t.x+t.size/2,t.y-cameraY+t.size/2,t.size/2,0,Math.PI*2);
+    ctx.fillStyle = playerColor;
     ctx.fill();
   });
 
@@ -304,7 +302,7 @@ function draw(){
   ctx.fillStyle=playerColor;
   ctx.fillRect(player.x,player.y-cameraY,playerSize,playerSize);
 
-  // floating score
+  // float score text
   floatTexts.forEach(t=>{
     ctx.globalAlpha=t.alpha;
     ctx.fillStyle="#fff";
@@ -314,11 +312,15 @@ function draw(){
   });
 }
 
-function loop(){ if(!running) return; update(); draw(); requestAnimationFrame(loop); }
+function loop(){if(!running)return;update();draw();requestAnimationFrame(loop);}
 
 // controls
-document.addEventListener("keydown",e=>{ keys[e.key.toLowerCase()]=true; if(e.key==="Enter"&&!running)startGame(); });
-document.addEventListener("keyup",e=>{ keys[e.key.toLowerCase()]=false; });
+document.addEventListener("keydown",e=>{
+  keys[e.key.toLowerCase()]=true;
+  if(e.key==="Enter"&&!running) startGame();
+  if((e.key==="ArrowUp" || e.key.toLowerCase()==="w") && grounded) { player.vy = jumpPower; grounded=false; }
+});
+document.addEventListener("keyup",e=>{keys[e.key.toLowerCase()]=false;});
 
 ["leftBtn","rightBtn"].forEach(id=>{
   const key=id==="leftBtn"?"a":"d";
@@ -329,7 +331,7 @@ document.addEventListener("keyup",e=>{ keys[e.key.toLowerCase()]=false; });
   btn.addEventListener("mouseup",()=>keys[key]=false);
 });
 document.getElementById("jumpBtn").addEventListener("click",()=>{
-  if(grounded){ player.vy = jumpPower; grounded=false; }
+  if(grounded){player.vy=jumpPower; grounded=false;}
 });
 document.getElementById("startBtn").onclick=startGame;
 document.getElementById("restartBtn").onclick=startGame;
