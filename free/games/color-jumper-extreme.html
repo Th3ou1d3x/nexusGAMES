@@ -10,7 +10,7 @@
   --panel:#161a2b;
   --text:#e5e7eb;
   --muted:#9ca3af;
-  --marker:#f87171;
+  --marker:#ef4444;
   --jump:#3b82f6;
   --score:#fbbf24;
   --speed:#f472b6;
@@ -36,7 +36,6 @@ h1{font-size:20px;margin:0;color:#fff;text-align:center;flex-grow:1;}
 canvas{display:block;width:100%;height:auto;background:var(--panel);image-rendering:pixelated;aspect-ratio:1/1;}
 .controls{display:flex;flex-direction:row;justify-content:center;gap:6px;margin-top:16px;}
 .btn{min-width:48px;min-height:48px;font-size:20px;background:#101427;color:var(--text);border:1px solid rgba(255,255,255,0.08);border-radius:10px;cursor:pointer;}
-/* ✅ Fade + Zoom Animation */
 .overlay{
   position:absolute;inset:0;
   display:flex;align-items:center;justify-content:center;
@@ -45,10 +44,7 @@ canvas{display:block;width:100%;height:auto;background:var(--panel);image-render
   transform:scale(0.95);
   transition:opacity 0.5s ease,transform 0.5s ease;
 }
-.overlay.active{
-  opacity:1;pointer-events:auto;
-  transform:scale(1);
-}
+.overlay.active{opacity:1;pointer-events:auto;transform:scale(1);}
 .notice{
   background:rgba(15,18,32,0.9);
   border:1px solid rgba(255,255,255,0.08);
@@ -227,18 +223,23 @@ function update(){
 function draw(){
   ctx.fillStyle="#161a2b"; ctx.fillRect(0,0,canvas.width,canvas.height);
 
-  // 🔹 Draw a marker every 50 platforms
-  for(let i=0;i<platformCount;i+=50){
-    const markerY=platforms[0]?platforms[0].y - (i*100) - cameraY : 0;
+  // 🔥 Glowing & pulsing red markers every 50 platforms
+  const pulse = (Math.sin(Date.now()/500)+1)/2; // 0–1 sine wave
+  ctx.shadowColor = "#ef4444";
+  ctx.shadowBlur = 20 + pulse*20;
+  ctx.globalAlpha = 0.5 + pulse*0.5;
+  ctx.lineWidth = 3;
+  for(let i=50;i<=platformCount;i+=50){
+    const markerY = platforms[0] ? platforms[0].y - ((i-1)*100) - cameraY : 0;
     if(markerY < canvas.height && markerY > -50){
-      ctx.strokeStyle="var(--marker)";
-      ctx.lineWidth=3;
+      ctx.strokeStyle="#ef4444";
       ctx.beginPath();
       ctx.moveTo(0, markerY);
       ctx.lineTo(canvas.width, markerY);
       ctx.stroke();
     }
   }
+  ctx.globalAlpha=1; ctx.shadowBlur=0;
 
   trail.forEach(t=>{
     ctx.beginPath();
