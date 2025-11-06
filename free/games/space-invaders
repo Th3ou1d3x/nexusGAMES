@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Space Invaders PyScript</title>
+    <link rel="stylesheet" href="https://pyscript.net/latest/pyscript.css" />
+    <script defer src="https://pyscript.net/latest/pyscript.js"></script>
+    <style>
+        #game {
+            width: 600px;
+            height: 400px;
+            background: black;
+            color: white;
+            font-family: monospace;
+            position: relative;
+            overflow: hidden;
+        }
+        .player, .enemy, .bullet {
+            position: absolute;
+            width: 40px;
+            height: 20px;
+            text-align: center;
+            line-height: 20px;
+        }
+        .player { background: green; }
+        .enemy { background: red; }
+        .bullet { background: yellow; width: 5px; height: 10px; }
+    </style>
+</head>
+<body>
+    <div id="game" tabindex="0"></div> <!-- tabindex makes div focusable for keyboard -->
+
+    <py-script>
+from pyscript import Element
+import asyncio
+
+game_div = Element("game")
+game_div.element.focus()  # Focus to capture key events
+
+# Player
+player_pos = [280, 360]
+
+# Bullet
+bullet_pos = None
+bullet_el = None
+
+# Enemies
+enemies = [[i*50, 50] for i in range(10)]
+enemy_speed = 2
+
+# HTML Elements
+player_el = Element("div", classes="player")
+player_el.element.innerText = "P"
+player_el.element.style.left = f"{player_pos[0]}px"
+player_el.element.style.top = f"{player_pos[1]}px"
+game_div.element.appendChild(player_el.element)
+
+enemy_elements = []
+for e in enemies:
+    el = Element("div", classes="enemy")
+    el.element.style.left = f"{e[0]}px"
+    el.element.style.top = f"{e[1]}px"
+    el.element.innerText = "E"
+    game_div.element.appendChild(el.element)
+    enemy_elements.append(el)
+
+# Controls
+def handle_key(event):
+    global player_pos, bullet_pos, bullet_el
+    key = event.key
+    if key == "ArrowLeft":
+        player_pos[0] = max(0, player_pos[0]-10)
+        player_el.element.style.left = f"{player_pos[0]}px"
+    elif key == "ArrowRight":
+        player_pos[0] = min(560, player_pos[0]+10)
+        player_el.element.style.left = f"{player_pos[0]}px"
+    elif key == " " and bullet_pos is None:
+        # Fire bullet
+        bullet_pos = [player_pos[0]+18, player_pos[1]]
+        bullet_el = Element("div", classes="bullet")
+        bullet_el.element.style.left = f"{bullet_pos[0]}px"
+        bullet_el.element.style.top = f"{bullet_pos[1]}px"
+        bullet_el.element.innerText = "|"
+        game_div.element.appendChild(bullet_el.element)
+
+game_div.element.addEventListener("keydown", handle_key)
+
+# Game Loop
+async def game_loop():
+    global bullet_pos, bullet_el, enemies, enemy_elements, enemy_speed
+    while True:
+        # Move enemies
+        for i, e in enumerate(enemies):
+            e[0] += enemy_speed
+            enemy_elements[i].element.style.left = f"{e[0]}px"
+
+        # Bounce enemies at edges
+        if any(e[0] > 560 or e[0] < 0 for e in enemies):
+            for e in enemies:
+                e[1] += 20
+            enemy_speed *= -1
+            for i, e in enumerate(enemies):
+                enemy_elements[i].element.style.top = f"{e[1]}px"
+
+        # Move bullet
+        if bullet_pos:
+            bullet_pos[1] -= 8
+            bullet_el.element.style.top = f"{bullet_pos[1]}px"
+            if bullet_pos[1] < 0:
+                game_div.element.removeChild(bullet_el.element)
+                bullet_pos = None
+
+        # Collision detection
+        if bullet_pos:
+            for i, e in enumerate(enemies):
+                if (bullet_pos[0] < e[0]+40 and bullet_pos[0]+5 > e[0] and
+                    bullet_pos[1] < e[1]+20 and bullet_pos[1]+10 > e[1]):
+                    game_div.element.removeChild(enemy_elements[i].element)
+                    enemies.pop(i)
+                    enemy_elements.pop(i)
+                    game_div.element.removeChild(bullet_el.element)
+                    bullet_pos = None
+                    break
+
+        await asyncio.sleep(0.05)
+
+asyncio.ensure_future(game_loop())
+    </py-script>
+</body>
+</html>
