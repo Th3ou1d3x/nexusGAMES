@@ -219,22 +219,22 @@ function loop(){if(!running)return;update();draw();requestAnimationFrame(loop);}
 document.addEventListener("keydown",e=>{keys[e.key.toLowerCase()]=true;if(e.key==="Enter" && (!running||gameOver)) startGame();});
 document.addEventListener("keyup",e=>{keys[e.key.toLowerCase()]=false;});
 
-// buttons
-document.getElementById("leftBtn").addEventListener("click",()=>{
-    keys["a"]=true;
-    setTimeout(()=>{keys["a"]=false;},50); // short press
-});
-document.getElementById("rightBtn").addEventListener("click",()=>{
-    keys["d"]=true;
-    setTimeout(()=>{keys["d"]=false;},50);
-});
-document.getElementById("jumpBtn").addEventListener("click",()=>{
-    if(grounded){
-        player.vy=jumpPower;
-        grounded=false;
-    }
+// mobile buttons with hold support
+["leftBtn","rightBtn"].forEach(id=>{
+  const key=id==="leftBtn"?"a":"d";
+  const btn=document.getElementById(id);
+  btn.addEventListener("touchstart",()=>keys[key]=true);
+  btn.addEventListener("touchend",()=>keys[key]=false);
+  btn.addEventListener("mousedown",()=>keys[key]=true);
+  btn.addEventListener("mouseup",()=>keys[key]=false);
 });
 
+document.getElementById("jumpBtn").addEventListener("click",()=>{
+  if(grounded){player.vy=jumpPower;grounded=false;}
+});
+
+document.getElementById("startBtn").onclick=startGame;
+document.getElementById("restartBtn").onclick=startGame;
 
 updateUI();
 </script>
