@@ -26,8 +26,8 @@ h1{font-size:20px;margin:0;color:#fff;text-align:center;flex-grow:1;}
 canvas{display:block;width:100%;height:auto;background:var(--panel);image-rendering:pixelated;aspect-ratio:1/1;}
 .controls{display:flex;flex-direction:row;justify-content:center;gap:6px;margin-top:16px;}
 .btn{min-width:48px;min-height:48px;font-size:20px;background:#101427;color:var(--text);border:1px solid rgba(255,255,255,0.08);border-radius:10px;cursor:pointer;}
-.overlay{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;}
-.notice{background:rgba(15,18,32,0.8);border:1px solid rgba(255,255,255,0.08);padding:18px 16px;border-radius:12px;text-align:center;max-width:90%;pointer-events:auto;}
+.overlay{position:absolute;inset:0;display:grid;place-items:center;background:rgba(0,0,0,0.3);}
+.notice{background:rgba(15,18,32,0.9);border:1px solid rgba(255,255,255,0.08);padding:18px 16px;border-radius:12px;text-align:center;max-width:90%;}
 .notice h2{margin:0 0 6px;font-size:20px;color:#fff;}
 .notice p{margin:0 0 12px;color:var(--muted);font-size:14px;}
 .back-btn{text-decoration:none;color:#e5e7eb;padding:6px 10px;background:#101427;border-radius:8px;border:1px solid rgba(255,255,255,0.08);}
@@ -45,26 +45,29 @@ canvas{display:block;width:100%;height:auto;background:var(--panel);image-render
 </header>
 
 <div class="panel">
-<canvas id="game" width="480" height="480"></canvas>
-<div class="overlay" id="startOverlay">
-<div class="notice">
-<h2>Ready?</h2>
-<p>Press <b>Enter</b> or tap <b>Start</b> to play.</p>
-<button id="startBtn">Start</button>
-</div>
-</div>
-<div class="overlay" id="gameOverOverlay" style="display:none;">
-<div class="notice">
-<h2>Game Over</h2>
-<button id="restartBtn">Restart</button>
-</div>
-</div>
+  <canvas id="game" width="480" height="480"></canvas>
+
+  <!-- ✅ overlays fixed to allow button clicks -->
+  <div class="overlay" id="startOverlay" style="display:flex; pointer-events:auto;">
+    <div class="notice">
+      <h2>Ready?</h2>
+      <p>Press <b>Enter</b> or tap <b>Start</b> to play.</p>
+      <button id="startBtn" class="btn">Start</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="gameOverOverlay" style="display:none; pointer-events:auto;">
+    <div class="notice">
+      <h2>Game Over</h2>
+      <button id="restartBtn" class="btn">Restart</button>
+    </div>
+  </div>
 </div>
 
 <div class="controls">
-<button class="btn" id="leftBtn">&larr;</button>
-<button class="btn" id="jumpBtn">&#8679;</button>
-<button class="btn" id="rightBtn">&rarr;</button>
+  <button class="btn" id="leftBtn">&larr;</button>
+  <button class="btn" id="jumpBtn">&#8679;</button>
+  <button class="btn" id="rightBtn">&rarr;</button>
 </div>
 </div>
 
@@ -115,8 +118,16 @@ function startGame(){
   requestAnimationFrame(loop); updateUI();
 }
 
-function endGame(){running=false;gameOver=true;if(score>best){best=score;localStorage.setItem(STORAGE_KEY,best);}updateUI();}
-function updateUI(){document.getElementById("score").textContent=score;document.getElementById("best").textContent=best;document.getElementById("gameOverOverlay").style.display=gameOver?"":"none";}
+function endGame(){
+  running=false;gameOver=true;
+  if(score>best){best=score;localStorage.setItem(STORAGE_KEY,best);}
+  updateUI();
+  document.getElementById("gameOverOverlay").style.display="flex";
+}
+function updateUI(){
+  document.getElementById("score").textContent=score;
+  document.getElementById("best").textContent=best;
+}
 
 function addPlatform(){
   const minY=Math.min(...platforms.map(p=>p.y));
@@ -126,8 +137,8 @@ function addPlatform(){
   platformCount++;
 }
 
-function addFloatScore(x,y,amount){
-  floatScores.push({x,y,amount,alpha:1,vy:-1});
+function addFloatScore(x,y,amount,color="#fff"){
+  floatScores.push({x,y,amount,alpha:1,vy:-1,color});
 }
 
 function handleInput(){
@@ -155,11 +166,11 @@ function update(){
     if(player.vy>0 && player.x+playerSize>p.x && player.x<p.x+platformWidth && player.y+playerSize>p.y && player.y+playerSize<p.y+platformHeight){
       player.y=p.y-playerSize; player.vy=0; grounded=true;
       if(p.powerup){
-        let bonus=0;
-        if(p.powerup==="jump"){player.vy=jumpPower*1.5;bonus=0;}
-        if(p.powerup==="score"){bonus=5*comboMultiplier;score+=bonus;}
-        if(p.powerup==="speed"){speedBoostTimer=100;bonus=0;}
-        if(bonus>0)addFloatScore(player.x+playerSize/2, player.y-cameraY, `+${bonus}`);
+        let bonus=0; let color="#fff";
+        if(p.powerup==="jump"){player.vy=jumpPower*1.5;color="var(--jump)";}
+        if(p.powerup==="score"){bonus=5*comboMultiplier;score+=bonus;color="var(--score)";}
+        if(p.powerup==="speed"){speedBoostTimer=100;color="var(--speed)";}
+        if(bonus>0)addFloatScore(player.x+playerSize/2, player.y-cameraY, `+${bonus}`,color);
         comboMultiplier++; comboTimer=200;
         p.powerup=null;
       } else comboMultiplier=1;
@@ -167,27 +178,24 @@ function update(){
     }
   });
 
-  // float scores
   floatScores=floatScores.map(fs=>({...fs,y:fs.y+fs.vy,alpha:fs.alpha-0.02})).filter(fs=>fs.alpha>0);
 
   if(player.y-cameraY<canvas.height/2) cameraY=player.y-canvas.height/2;
   if(player.y-cameraY>canvas.height) endGame();
-
   platforms=platforms.filter(p=>p.y-cameraY<canvas.height+50);
+
   updateUI();
 }
 
 function draw(){
   ctx.fillStyle="#161a2b"; ctx.fillRect(0,0,canvas.width,canvas.height);
 
-  // markers
   for(let i=0;i<platformCount;i+=50){
     const markerY=platforms[0]?platforms[0].y-i*100-cameraY:0;
     ctx.fillStyle="var(--marker)";
     ctx.fillRect(0,markerY,canvas.width,4);
   }
 
-  // trail circles
   trail.forEach(t=>{
     ctx.beginPath();
     ctx.arc(t.x+t.size/2, t.y-cameraY+t.size/2, t.size/2, 0, Math.PI*2);
@@ -195,7 +203,6 @@ function draw(){
     ctx.fill();
   });
 
-  // platforms
   platforms.forEach(p=>{
     ctx.fillStyle=p.color; ctx.fillRect(p.x,p.y-cameraY,platformWidth,platformHeight);
     if(p.powerup){
@@ -206,14 +213,12 @@ function draw(){
     }
   });
 
-  // player
   ctx.fillStyle=playerColor; ctx.fillRect(player.x,player.y-cameraY,playerSize,playerSize);
 
-  // floating score text
   floatScores.forEach(fs=>{
-    ctx.fillStyle=`rgba(255,255,255,${fs.alpha})`;
-    ctx.font="16px Arial";
-    ctx.fillText(fs.amount,fs.x,fs.y);
+    ctx.fillStyle=`${fs.color}`; ctx.globalAlpha=fs.alpha;
+    ctx.font="16px Arial"; ctx.fillText(fs.amount,fs.x,fs.y);
+    ctx.globalAlpha=1;
   });
 
   if(comboMultiplier>1){ctx.fillStyle="yellow";ctx.font="16px Arial";ctx.fillText(`x${comboMultiplier} Combo!`,10,20);}
@@ -227,11 +232,9 @@ function hexToRgb(hex){
 
 function loop(){if(!running)return;update();draw();requestAnimationFrame(loop);}
 
-// keyboard
 document.addEventListener("keydown",e=>{keys[e.key.toLowerCase()]=true;if(e.key==="Enter" && (!running||gameOver)) startGame();});
 document.addEventListener("keyup",e=>{keys[e.key.toLowerCase()]=false;});
 
-// mobile buttons
 ["leftBtn","rightBtn"].forEach(id=>{
   const key=id==="leftBtn"?"a":"d";
   const btn=document.getElementById(id);
@@ -243,4 +246,9 @@ document.addEventListener("keyup",e=>{keys[e.key.toLowerCase()]=false;});
 document.getElementById("jumpBtn").addEventListener("click",()=>{if(grounded){player.vy=jumpPower;grounded=false;}});
 
 document.getElementById("startBtn").onclick=startGame;
-document.getElementById("restartBtn").onclick=startGame
+document.getElementById("restartBtn").onclick=startGame;
+
+updateUI();
+</script>
+</body>
+</html>
