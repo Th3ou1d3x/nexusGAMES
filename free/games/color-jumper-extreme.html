@@ -30,12 +30,13 @@ canvas{display:block;width:100%;height:auto;background:var(--panel);image-render
 .notice{background:rgba(15,18,32,0.8);border:1px solid rgba(255,255,255,0.08);padding:18px 16px;border-radius:12px;text-align:center;max-width:90%;pointer-events:auto;}
 .notice h2{margin:0 0 6px;font-size:20px;color:#fff;}
 .notice p{margin:0 0 12px;color:var(--muted);font-size:14px;}
+.back-btn{text-decoration:none;color:#e5e7eb;padding:6px 10px;background:#101427;border-radius:8px;border:1px solid rgba(255,255,255,0.08);}
 </style>
 </head>
 <body>
 <div class="wrap">
 <header>
-  <a href="#" class="back-btn">&larr; Back</a>
+  <a href="/free" class="back-btn">&larr; Back</a>
   <h1>Color Jumper Extreme</h1>
   <div class="stats">
     <span>Score: <b id="score">0</b></span>
@@ -154,10 +155,14 @@ function update(){
         if(p.powerup==="speed") speedBoostTimer=100;
         comboMultiplier++; comboTimer=200;
         p.powerup=null;
-      } else {score++; comboMultiplier=1;}
+      } else {comboMultiplier=1;}
       addPlatform();
     }
   });
+
+  // automatically update score based on player's Y (higher = more points)
+  let highestPlatform = Math.min(...platforms.map(p=>p.y));
+  score = Math.max(score, Math.floor((canvas.height - highestPlatform)/10));
 
   if(player.y-cameraY<canvas.height/2) cameraY=player.y-canvas.height/2;
   if(player.y-cameraY>canvas.height) endGame();
@@ -215,7 +220,7 @@ document.addEventListener("keydown",e=>{keys[e.key.toLowerCase()]=true;if(e.key=
 document.addEventListener("keyup",e=>{keys[e.key.toLowerCase()]=false;});
 
 // buttons
-document.getElementById("leftBtn").onclick=()=>keys["a"]=true;
+document.getElementById("leftBtn").onclick=()=>keys["a"]=true; 
 document.getElementById("rightBtn").onclick=()=>keys["d"]=true;
 document.getElementById("jumpBtn").onclick=()=>{if(grounded){player.vy=jumpPower;grounded=false;}};
 document.getElementById("startBtn").onclick=startGame;
