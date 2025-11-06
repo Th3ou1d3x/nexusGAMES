@@ -6,125 +6,106 @@
     <link rel="stylesheet" href="https://pyscript.net/latest/pyscript.css" />
     <script defer src="https://pyscript.net/latest/pyscript.js"></script>
     <style>
-        #game {
-            width: 600px;
-            height: 400px;
+        canvas {
             background: black;
-            color: white;
-            font-family: monospace;
-            position: relative;
-            overflow: hidden;
+            display: block;
+            margin: auto;
         }
-        .player, .enemy, .bullet {
-            position: absolute;
-            width: 40px;
-            height: 20px;
-            text-align: center;
-            line-height: 20px;
-        }
-        .player { background: green; }
-        .enemy { background: red; }
-        .bullet { background: yellow; width: 5px; height: 10px; }
     </style>
 </head>
 <body>
-    <div id="game" tabindex="0"></div> <!-- tabindex makes div focusable for keyboard -->
+    <canvas id="gameCanvas" width="600" height="400"></canvas>
 
     <py-script>
-from pyscript import Element
-import asyncio
+import js
 
-game_div = Element("game")
-game_div.element.focus()  # Focus to capture key events
+# --- Canvas Setup ---
+canvas = js.document.getElementById("gameCanvas")
+ctx = canvas.getContext("2d")
 
-# Player
-player_pos = [280, 360]
+# --- Player ---
+player_x = 280
+player_y = 360
+player_speed = 10
 
-# Bullet
-bullet_pos = None
-bullet_el = None
+# --- Bullet ---
+bullet_x = 0
+bullet_y = 0
+bullet_speed = 8
+bullet_active = False
 
-# Enemies
-enemies = [[i*50, 50] for i in range(10)]
+# --- Enemies ---
+enemies = [{"x": i*50, "y": 50} for i in range(10)]
 enemy_speed = 2
 
-# HTML Elements
-player_el = Element("div", classes="player")
-player_el.element.innerText = "P"
-player_el.element.style.left = f"{player_pos[0]}px"
-player_el.element.style.top = f"{player_pos[1]}px"
-game_div.element.appendChild(player_el.element)
+# --- Draw Functions ---
+def draw_player():
+    ctx.fillStyle = "green"
+    ctx.fillRect(player_x, player_y, 40, 20)
 
-enemy_elements = []
-for e in enemies:
-    el = Element("div", classes="enemy")
-    el.element.style.left = f"{e[0]}px"
-    el.element.style.top = f"{e[1]}px"
-    el.element.innerText = "E"
-    game_div.element.appendChild(el.element)
-    enemy_elements.append(el)
+def draw_bullet():
+    if bullet_active:
+        ctx.fillStyle = "yellow"
+        ctx.fillRect(bullet_x, bullet_y, 5, 10)
 
-# Controls
-def handle_key(event):
-    global player_pos, bullet_pos, bullet_el
+def draw_enemies():
+    ctx.fillStyle = "red"
+    for e in enemies:
+        ctx.fillRect(e["x"], e["y"], 40, 20)
+
+# --- Movement ---
+def move_bullet():
+    global bullet_y, bullet_active
+    if bullet_active:
+        bullet_y -= bullet_speed
+        if bullet_y < 0:
+            bullet_active = False
+
+def move_enemies():
+    for e in enemies:
+        e["x"] += enemy_speed
+    if any(e["x"] > 560 or e["x"] < 0 for e in enemies):
+        for e in enemies:
+            e["y"] += 20
+        global enemy_speed
+        enemy_speed *= -1
+
+def check_collision():
+    global bullet_active
+    for e in enemies:
+        if bullet_active and bullet_x < e["x"]+40 and bullet_x+5 > e["x"] and bullet_y < e["y"]+20 and bullet_y+10 > e["y"]:
+            enemies.remove(e)
+            bullet_active = False
+            break
+
+# --- Keyboard Controls ---
+def keydown(event):
+    global player_x, bullet_x, bullet_y, bullet_active
     key = event.key
     if key == "ArrowLeft":
-        player_pos[0] = max(0, player_pos[0]-10)
-        player_el.element.style.left = f"{player_pos[0]}px"
+        player_x = max(0, player_x - player_speed)
     elif key == "ArrowRight":
-        player_pos[0] = min(560, player_pos[0]+10)
-        player_el.element.style.left = f"{player_pos[0]}px"
-    elif key == " " and bullet_pos is None:
-        # Fire bullet
-        bullet_pos = [player_pos[0]+18, player_pos[1]]
-        bullet_el = Element("div", classes="bullet")
-        bullet_el.element.style.left = f"{bullet_pos[0]}px"
-        bullet_el.element.style.top = f"{bullet_pos[1]}px"
-        bullet_el.element.innerText = "|"
-        game_div.element.appendChild(bullet_el.element)
+        player_x = min(560, player_x + player_speed)
+    elif key == " ":
+        if not bullet_active:
+            bullet_x = player_x + 18
+            bullet_y = player_y
+            bullet_active = True
 
-game_div.element.addEventListener("keydown", handle_key)
+js.document.addEventListener("keydown", keydown)
 
-# Game Loop
-async def game_loop():
-    global bullet_pos, bullet_el, enemies, enemy_elements, enemy_speed
-    while True:
-        # Move enemies
-        for i, e in enumerate(enemies):
-            e[0] += enemy_speed
-            enemy_elements[i].element.style.left = f"{e[0]}px"
+# --- Game Loop ---
+def game_loop(*args):
+    ctx.clearRect(0, 0, 600, 400)
+    draw_player()
+    draw_bullet()
+    draw_enemies()
+    move_bullet()
+    move_enemies()
+    check_collision()
+    js.requestAnimationFrame(game_loop)
 
-        # Bounce enemies at edges
-        if any(e[0] > 560 or e[0] < 0 for e in enemies):
-            for e in enemies:
-                e[1] += 20
-            enemy_speed *= -1
-            for i, e in enumerate(enemies):
-                enemy_elements[i].element.style.top = f"{e[1]}px"
-
-        # Move bullet
-        if bullet_pos:
-            bullet_pos[1] -= 8
-            bullet_el.element.style.top = f"{bullet_pos[1]}px"
-            if bullet_pos[1] < 0:
-                game_div.element.removeChild(bullet_el.element)
-                bullet_pos = None
-
-        # Collision detection
-        if bullet_pos:
-            for i, e in enumerate(enemies):
-                if (bullet_pos[0] < e[0]+40 and bullet_pos[0]+5 > e[0] and
-                    bullet_pos[1] < e[1]+20 and bullet_pos[1]+10 > e[1]):
-                    game_div.element.removeChild(enemy_elements[i].element)
-                    enemies.pop(i)
-                    enemy_elements.pop(i)
-                    game_div.element.removeChild(bullet_el.element)
-                    bullet_pos = None
-                    break
-
-        await asyncio.sleep(0.05)
-
-asyncio.ensure_future(game_loop())
+game_loop()
     </py-script>
 </body>
 </html>
