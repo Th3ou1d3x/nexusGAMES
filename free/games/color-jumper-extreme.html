@@ -26,8 +26,30 @@ h1{font-size:20px;margin:0;color:#fff;text-align:center;flex-grow:1;}
 canvas{display:block;width:100%;height:auto;background:var(--panel);image-rendering:pixelated;aspect-ratio:1/1;}
 .controls{display:flex;flex-direction:row;justify-content:center;gap:6px;margin-top:16px;}
 .btn{min-width:48px;min-height:48px;font-size:20px;background:#101427;color:var(--text);border:1px solid rgba(255,255,255,0.08);border-radius:10px;cursor:pointer;}
-.overlay{position:absolute;inset:0;display:grid;place-items:center;background:rgba(0,0,0,0.3);}
-.notice{background:rgba(15,18,32,0.9);border:1px solid rgba(255,255,255,0.08);padding:18px 16px;border-radius:12px;text-align:center;max-width:90%;}
+/* ✅ Fade & Centered Overlays */
+.overlay{
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:rgba(0,0,0,0.3);
+  opacity:0;
+  pointer-events:none;
+  transition:opacity 0.5s ease;
+}
+.overlay.active{
+  opacity:1;
+  pointer-events:auto;
+}
+.notice{
+  background:rgba(15,18,32,0.9);
+  border:1px solid rgba(255,255,255,0.08);
+  padding:18px 16px;
+  border-radius:12px;
+  text-align:center;
+  max-width:90%;
+}
 .notice h2{margin:0 0 6px;font-size:20px;color:#fff;}
 .notice p{margin:0 0 12px;color:var(--muted);font-size:14px;}
 .back-btn{text-decoration:none;color:#e5e7eb;padding:6px 10px;background:#101427;border-radius:8px;border:1px solid rgba(255,255,255,0.08);}
@@ -47,8 +69,7 @@ canvas{display:block;width:100%;height:auto;background:var(--panel);image-render
 <div class="panel">
   <canvas id="game" width="480" height="480"></canvas>
 
-  <!-- ✅ overlays fixed to allow button clicks -->
-  <div class="overlay" id="startOverlay" style="display:flex; pointer-events:auto;">
+  <div class="overlay active" id="startOverlay">
     <div class="notice">
       <h2>Ready?</h2>
       <p>Press <b>Enter</b> or tap <b>Start</b> to play.</p>
@@ -56,7 +77,7 @@ canvas{display:block;width:100%;height:auto;background:var(--panel);image-render
     </div>
   </div>
 
-  <div class="overlay" id="gameOverOverlay" style="display:none; pointer-events:auto;">
+  <div class="overlay" id="gameOverOverlay">
     <div class="notice">
       <h2>Game Over</h2>
       <button id="restartBtn" class="btn">Restart</button>
@@ -110,11 +131,20 @@ function reset(){
   score=0; gameOver=false; cameraY=0; grounded=false; speedBoostTimer=0; comboMultiplier=1; comboTimer=0; trail=[]; floatScores=[];
 }
 
+function fadeOutOverlay(el){
+  el.classList.remove("active");
+  setTimeout(()=>{el.style.display="none";},500);
+}
+function fadeInOverlay(el){
+  el.style.display="flex";
+  setTimeout(()=>el.classList.add("active"),10);
+}
+
 function startGame(){
   best=parseInt(localStorage.getItem(STORAGE_KEY)||"0",10);
   reset(); running=true;
-  document.getElementById("startOverlay").style.display="none";
-  document.getElementById("gameOverOverlay").style.display="none";
+  fadeOutOverlay(document.getElementById("startOverlay"));
+  fadeOutOverlay(document.getElementById("gameOverOverlay"));
   requestAnimationFrame(loop); updateUI();
 }
 
@@ -122,7 +152,7 @@ function endGame(){
   running=false;gameOver=true;
   if(score>best){best=score;localStorage.setItem(STORAGE_KEY,best);}
   updateUI();
-  document.getElementById("gameOverOverlay").style.display="flex";
+  fadeInOverlay(document.getElementById("gameOverOverlay"));
 }
 function updateUI(){
   document.getElementById("score").textContent=score;
@@ -189,20 +219,17 @@ function update(){
 
 function draw(){
   ctx.fillStyle="#161a2b"; ctx.fillRect(0,0,canvas.width,canvas.height);
-
   for(let i=0;i<platformCount;i+=50){
     const markerY=platforms[0]?platforms[0].y-i*100-cameraY:0;
     ctx.fillStyle="var(--marker)";
     ctx.fillRect(0,markerY,canvas.width,4);
   }
-
   trail.forEach(t=>{
     ctx.beginPath();
     ctx.arc(t.x+t.size/2, t.y-cameraY+t.size/2, t.size/2, 0, Math.PI*2);
     ctx.fillStyle=`rgba(${hexToRgb(playerColor)},${t.alpha*0.5})`;
     ctx.fill();
   });
-
   platforms.forEach(p=>{
     ctx.fillStyle=p.color; ctx.fillRect(p.x,p.y-cameraY,platformWidth,platformHeight);
     if(p.powerup){
@@ -212,15 +239,12 @@ function draw(){
       ctx.fillRect(p.x+platformWidth/2-5,p.y-cameraY-10,10,10);
     }
   });
-
   ctx.fillStyle=playerColor; ctx.fillRect(player.x,player.y-cameraY,playerSize,playerSize);
-
   floatScores.forEach(fs=>{
     ctx.fillStyle=`${fs.color}`; ctx.globalAlpha=fs.alpha;
     ctx.font="16px Arial"; ctx.fillText(fs.amount,fs.x,fs.y);
     ctx.globalAlpha=1;
   });
-
   if(comboMultiplier>1){ctx.fillStyle="yellow";ctx.font="16px Arial";ctx.fillText(`x${comboMultiplier} Combo!`,10,20);}
 }
 
@@ -229,7 +253,6 @@ function hexToRgb(hex){
   const r=(bigint>>16)&255, g=(bigint>>8)&255, b=bigint&255;
   return `${r},${g},${b}`;
 }
-
 function loop(){if(!running)return;update();draw();requestAnimationFrame(loop);}
 
 document.addEventListener("keydown",e=>{keys[e.key.toLowerCase()]=true;if(e.key==="Enter" && (!running||gameOver)) startGame();});
