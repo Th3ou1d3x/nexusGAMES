@@ -160,12 +160,21 @@ function randomColor(){return `hsl(${Math.random()*360},70%,60%)`;}
 function startGame(){
   ui.startOverlay.style.display="none";
   ui.gameOverOverlay.style.display="none";
-  running=true;gameOver=false;score=0;platformCount=0;level=1;
+  running=true; gameOver=false; score=0; platformCount=0; level=1;
   playerColor=randomColor();
-  player={x:canvas.width/2-10,y:canvas.height-80,vy:0};
+  
   platforms=[];
   for(let i=0;i<50;i++){createPlatform(i*100);}
-  cameraY=platforms[0].y-200;
+  
+  // spawn player on top of the first platform
+  const firstPlatform = platforms[0];
+  player = {
+    x: firstPlatform.x + 40 - playerSize/2, // centered on platform
+    y: firstPlatform.y - playerSize,
+    vy: 0
+  };
+  
+  cameraY=player.y - canvas.height/3;
   requestAnimationFrame(loop);
 }
 
