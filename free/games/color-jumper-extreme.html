@@ -12,7 +12,6 @@
   --marker:#ff4444;
   --jump:#3b82f6;
   --score:#fbbf24;
-  --speed:#f472b6;
 }
 html,body {
   height:100%;
@@ -44,23 +43,24 @@ canvas {
   text-shadow:0 0 10px #000;
 }
 #ui span {margin:0 10px;}
+.controls {
+  position:fixed;
+  bottom:20px;
+  display:flex;
+  gap:10px;
+}
 button {
-  margin-top:20px;
   background:var(--panel);
   border:none;
   color:var(--text);
   font-size:20px;
-  padding:12px 30px;
+  padding:12px 20px;
   border-radius:12px;
   cursor:pointer;
-  box-shadow:0 0 10px #000a;
-  transition:transform 0.15s;
 }
-button:hover {transform:scale(1.05);}
-button:active {transform:scale(0.95);}
 @keyframes pulse {
-  0%,100% {opacity:0.5; box-shadow:0 0 6px 2px var(--marker);}
-  50% {opacity:1; box-shadow:0 0 14px 4px var(--marker);}
+  0%,100% {opacity:0.5;}
+  50% {opacity:1;}
 }
 </style>
 </head>
@@ -71,6 +71,11 @@ button:active {transform:scale(0.95);}
   <span id="levelLabel">Level: 1</span>
 </div>
 <canvas id="game"></canvas>
+<div class="controls">
+  <button id="leftBtn">&larr;</button>
+  <button id="jumpBtn">&uarr;</button>
+  <button id="rightBtn">&rarr;</button>
+</div>
 <button id="startBtn">Play</button>
 
 <script>
@@ -78,45 +83,51 @@ const canvas=document.getElementById("game");
 const ctx=canvas.getContext("2d");
 canvas.width=400; canvas.height=600;
 
-let player,platforms=[],keys={},running=false,score=0,platformCount=0,cameraY=0,markers=[],scorePopups=[];
+let player,platforms=[],keys={},running=false,score=0,platformCount=0,cameraY=0,markers=[],scorePopups=[],trail=[];
 let level=1;
-const gravity=0.5,jumpPower=-10,playerSize=20,platformWidth=70,platformHeight=10;
+const gravity=0.5,jumpPower=-12,playerSize=20,platformWidth=70,platformHeight=10;
 
-function randomColor(){
-  return "#"+Math.floor(Math.random()*16777215).toString(16).padStart(6,"0");
-}
+function randomColor(){return "#"+Math.floor(Math.random()*16777215).toString(16).padStart(6,"0");}
 
 function startGame(){
   running=true;
   score=0; platformCount=0; level=1; cameraY=0;
-  player={x:canvas.width/2-10,y:canvas.height-60,vy:0,color:randomColor()};
   platforms=[];
-  for(let i=0;i<120;i++){
+  for(let i=0;i<50;i++){
     const x=Math.random()*(canvas.width-platformWidth);
     const y=canvas.height-i*60;
     platforms.push({x,y,color:"#38bdf8"});
   }
+  // Spawn player on top of first platform
+  player={x:platforms[0].x+platformWidth/2-playerSize/2,y:platforms[0].y-playerSize,vy:0,color:randomColor()};
   markers=[];
   for(let i=50;i<=1000;i+=50){
     markers.push({platformIndex:i,color:"var(--marker)"});
   }
   scorePopups=[];
+  trail=[];
   document.getElementById("startBtn").style.display="none";
   loop();
 }
 
+function createPlatform(y){
+  const x=Math.random()*(canvas.width-platformWidth);
+  platforms.push({x,y,color:"#38bdf8"});
+}
+
 function update(){
-  player.vy+=gravity;
-  player.y+=player.vy;
   if(keys.a)player.x-=4;
   if(keys.d)player.x+=4;
+  player.vy+=gravity;
+  player.y+=player.vy;
 
-  // Platform collision
-  for(let p of platforms){
+  let grounded=false;
+  for(const p of platforms){
     if(player.vy>0 &&
        player.x+playerSize>p.x && player.x<p.x+platformWidth &&
        player.y+playerSize>p.y && player.y+playerSize<p.y+platformHeight){
       player.vy=jumpPower;
+      grounded=true;
       score+=10;
       platformCount++;
       scorePopups.push({x:player.x+playerSize/2,y:p.y-20-cameraY,alpha:1,text:"+10"});
@@ -124,19 +135,26 @@ function update(){
     }
   }
 
-  // Camera follow
+  if(!grounded && player.y>canvas.height+playerSize){running=false; document.getElementById("startBtn").style.display="block";}
+
   if(player.y<canvas.height/2) cameraY+=canvas.height/2 - player.y;
   if(player.x<0)player.x=0;
   if(player.x+playerSize>canvas.width)player.x=canvas.width-playerSize;
 
-  // Update UI
+  if(platforms[platforms.length-1].y>cameraY-600) createPlatform(platforms[platforms.length-1].y-60);
+
+  // Trail
+  trail.push({x:player.x,y:player.y-cameraY,size:playerSize,alpha:0.5});
+  if(trail.length>15)trail.shift();
+
+  // Floating score popups
+  scorePopups.forEach(p=>{p.y-=1; p.alpha-=0.02;});
+  scorePopups=scorePopups.filter(p=>p.alpha>0);
+
+  // UI
   document.getElementById("scoreLabel").textContent="Score: "+score;
   document.getElementById("platformLabel").textContent="Platforms: "+platformCount;
   document.getElementById("levelLabel").textContent="Level: "+level;
-
-  // Update score popups
-  scorePopups.forEach(p=>{p.y-=1; p.alpha-=0.02;});
-  scorePopups=scorePopups.filter(p=>p.alpha>0);
 }
 
 function draw(){
@@ -146,8 +164,8 @@ function draw(){
   markers.forEach((m,i)=>{
     const idx=m.platformIndex-1;
     if(idx<platforms.length){
-      const plat=platforms[idx];
-      const y=plat.y-cameraY;
+      const p=platforms[idx];
+      const y=p.y-cameraY;
       ctx.strokeStyle=m.color;
       ctx.lineWidth=4;
       ctx.shadowColor=m.color;
@@ -157,41 +175,55 @@ function draw(){
       ctx.lineTo(canvas.width,y);
       ctx.stroke();
       ctx.shadowBlur=0;
-      ctx.fillStyle="var(--marker)";
+      ctx.fillStyle=m.color;
       ctx.font="bold 18px Arial";
       ctx.fillText(`LEVEL ${i+1}`,10,y-10);
     }
   });
 
   // Platforms
-  for(let p of platforms){
+  for(const p of platforms){
     ctx.fillStyle=p.color;
     ctx.fillRect(p.x,p.y-cameraY,platformWidth,platformHeight);
   }
+
+  // Trail
+  trail.forEach(t=>{
+    ctx.beginPath();
+    ctx.arc(t.x+playerSize/2,t.y+playerSize/2,t.size/2,0,Math.PI*2);
+    ctx.fillStyle=`rgba(255,255,255,${t.alpha})`;
+    ctx.fill();
+  });
 
   // Player
   ctx.fillStyle=player.color;
   ctx.fillRect(player.x,player.y-cameraY,playerSize,playerSize);
 
   // Floating score popups
-  for(let s of scorePopups){
+  scorePopups.forEach(s=>{
     ctx.globalAlpha=s.alpha;
     ctx.fillStyle="var(--score)";
     ctx.font="bold 16px Arial";
     ctx.fillText(s.text,s.x,s.y);
-  }
+  });
   ctx.globalAlpha=1;
 }
 
-function loop(){
-  if(!running)return;
-  update();
-  draw();
-  requestAnimationFrame(loop);
-}
+function loop(){if(!running)return;update();draw();requestAnimationFrame(loop);}
 
+// Controls
 document.addEventListener("keydown",e=>keys[e.key.toLowerCase()]=true);
 document.addEventListener("keyup",e=>keys[e.key.toLowerCase()]=false);
+
+["leftBtn","rightBtn"].forEach(id=>{
+  const key=id==="leftBtn"?"a":"d";
+  const btn=document.getElementById(id);
+  btn.addEventListener("touchstart",()=>keys[key]=true);
+  btn.addEventListener("touchend",()=>keys[key]=false);
+  btn.addEventListener("mousedown",()=>keys[key]=true);
+  btn.addEventListener("mouseup",()=>keys[key]=false);
+});
+document.getElementById("jumpBtn").addEventListener("click",()=>{player.vy=jumpPower;});
 document.getElementById("startBtn").onclick=startGame;
 </script>
 </body>
