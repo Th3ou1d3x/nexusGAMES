@@ -10,8 +10,8 @@
   --panel:#161a2b;
   --text:#e5e7eb;
   --marker:#ff4444;
-  --jump:#3b82f6;
   --score:#fbbf24;
+  --power:#34d399;
 }
 html,body {
   height:100%;
@@ -58,10 +58,6 @@ button {
   border-radius:12px;
   cursor:pointer;
 }
-@keyframes pulse {
-  0%,100% {opacity:0.5;}
-  50% {opacity:1;}
-}
 </style>
 </head>
 <body>
@@ -86,6 +82,8 @@ canvas.width=400; canvas.height=600;
 let player,platforms=[],keys={},running=false,score=0,platformCount=0,cameraY=0,markers=[],scorePopups=[],trail=[];
 let level=1;
 const gravity=0.5,jumpPower=-12,playerSize=20,platformWidth=70,platformHeight=10;
+const powerUpTypes=["score","jump"];
+let powerUps=[];
 
 function randomColor(){return "#"+Math.floor(Math.random()*16777215).toString(16).padStart(6,"0");}
 
@@ -93,17 +91,17 @@ function startGame(){
   running=true;
   score=0; platformCount=0; level=1; cameraY=0;
   platforms=[];
+  powerUps=[];
   for(let i=0;i<50;i++){
     const x=Math.random()*(canvas.width-platformWidth);
     const y=canvas.height-i*60;
     platforms.push({x,y,color:"#38bdf8"});
+    // 20% chance of power-up
+    if(Math.random()<0.2) powerUps.push({x:x+platformWidth/2-10,y:y-15,type:powerUpTypes[Math.floor(Math.random()*powerUpTypes.length)],col:"var(--power)",collected:false});
   }
-  // Spawn player on top of first platform
   player={x:platforms[0].x+platformWidth/2-playerSize/2,y:platforms[0].y-playerSize,vy:0,color:randomColor()};
   markers=[];
-  for(let i=50;i<=1000;i+=50){
-    markers.push({platformIndex:i,color:"var(--marker)"});
-  }
+  for(let i=50;i<=1000;i+=50){markers.push({platformIndex:i,color:"var(--marker)"});}
   scorePopups=[];
   trail=[];
   document.getElementById("startBtn").style.display="none";
@@ -113,6 +111,7 @@ function startGame(){
 function createPlatform(y){
   const x=Math.random()*(canvas.width-platformWidth);
   platforms.push({x,y,color:"#38bdf8"});
+  if(Math.random()<0.2) powerUps.push({x:x+platformWidth/2-10,y:y-15,type:powerUpTypes[Math.floor(Math.random()*powerUpTypes.length)],col:"var(--power)",collected:false});
 }
 
 function update(){
@@ -135,7 +134,19 @@ function update(){
     }
   }
 
-  if(!grounded && player.y>canvas.height+playerSize){running=false; document.getElementById("startBtn").style.display="block";}
+  // Power-up collision
+  for(const pu of powerUps){
+    if(!pu.collected &&
+       player.x+playerSize>pu.x && player.x<pu.x+20 &&
+       player.y+playerSize>pu.y && player.y<pu.y+20){
+      pu.collected=true;
+      if(pu.type==="score") score+=50;
+      if(pu.type==="jump") player.vy=jumpPower*1.5;
+      scorePopups.push({x:pu.x+10,y:pu.y-10-cameraY,alpha:1,text:"+PU"});
+    }
+  }
+
+  if(player.y>canvas.height+playerSize){running=false; document.getElementById("startBtn").style.display="block";}
 
   if(player.y<canvas.height/2) cameraY+=canvas.height/2 - player.y;
   if(player.x<0)player.x=0;
@@ -182,30 +193,20 @@ function draw(){
   });
 
   // Platforms
-  for(const p of platforms){
-    ctx.fillStyle=p.color;
-    ctx.fillRect(p.x,p.y-cameraY,platformWidth,platformHeight);
-  }
+  for(const p of platforms){ctx.fillStyle=p.color;ctx.fillRect(p.x,p.y-cameraY,platformWidth,platformHeight);}
+
+  // Power-ups
+  for(const pu of powerUps){if(!pu.collected){ctx.fillStyle=pu.col;ctx.fillRect(pu.x,pu.y-cameraY,20,20);}}
 
   // Trail
-  trail.forEach(t=>{
-    ctx.beginPath();
-    ctx.arc(t.x+playerSize/2,t.y+playerSize/2,t.size/2,0,Math.PI*2);
-    ctx.fillStyle=`rgba(255,255,255,${t.alpha})`;
-    ctx.fill();
-  });
+  trail.forEach(t=>{ctx.beginPath();ctx.arc(t.x+playerSize/2,t.y+playerSize/2,t.size/2,0,Math.PI*2);ctx.fillStyle=`rgba(255,255,255,${t.alpha})`;ctx.fill();});
 
   // Player
   ctx.fillStyle=player.color;
   ctx.fillRect(player.x,player.y-cameraY,playerSize,playerSize);
 
   // Floating score popups
-  scorePopups.forEach(s=>{
-    ctx.globalAlpha=s.alpha;
-    ctx.fillStyle="var(--score)";
-    ctx.font="bold 16px Arial";
-    ctx.fillText(s.text,s.x,s.y);
-  });
+  scorePopups.forEach(s=>{ctx.globalAlpha=s.alpha;ctx.fillStyle="var(--score)";ctx.font="bold 16px Arial";ctx.fillText(s.text,s.x,s.y);});
   ctx.globalAlpha=1;
 }
 
