@@ -110,7 +110,7 @@ function createPlatform(y){
   const color=`hsl(${Math.random()*360},60%,50%)`;
   const powerup=Math.random()<0.1?["jump","score","speed"][Math.floor(Math.random()*3)]:null;
   const moving=Math.random()<0.2;
-  platforms.push({x,y,color,powerup,moving,mvDir:1,mvSpeed:2,landed:false});
+  platforms.push({x,y,color,powerup,moving,mvDir:1,mvSpeed:1.5,landed:false}); // slower moving platforms
 }
 
 function startGame(){
@@ -174,8 +174,13 @@ function update(){
   const highest=platforms[platforms.length-1].y;
   if(canvas.height-highest-cameraY<800) createPlatform(highest-100);
 
+  // trail with changing size & transparency
   trail.push({x:player.x,y:player.y,size:playerSize,alpha:0.5});
-  if(trail.length>15) trail.shift();
+  trail.forEach(t=>{
+    t.size*=0.95;
+    t.alpha*=0.95;
+  });
+  trail=trail.filter(t=>t.alpha>0.02);
 
   floatTexts.forEach(t=>{t.y-=1;t.alpha-=0.02;});
   floatTexts=floatTexts.filter(t=>t.alpha>0);
