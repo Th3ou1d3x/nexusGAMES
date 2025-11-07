@@ -98,7 +98,7 @@ const ui={
 };
 const modeSelect=document.getElementById("modeSelect");
 
-let player,playerColor,playerSize=20,playerSpeed=4,jumpPower=-12,gravity=0.4,grounded=false;
+let player,playerColor,playerSize=20,playerSpeed=4,jumpPower=-20,gravity=0.4,grounded=false;
 let platforms=[],platformCount=0,level=1,score=0,best=parseInt(localStorage.getItem("cj_best")||"0");
 let keys={},running=false,gameOver=false,cameraY=0,trail=[],floatTexts=[],crazyTimer=0;
 
@@ -110,7 +110,7 @@ function createPlatform(y, isFirst=false){
   const color=`hsl(${Math.random()*360},60%,50%)`;
   const powerup=isFirst?null:(Math.random()<0.1?["jump","score","speed"][Math.floor(Math.random()*3)]:null);
   const moving=isFirst?false:(Math.random()<0.2);
-  const mvSpeed=moving?0.75:0; // half speed for moving platforms
+  const mvSpeed=moving?0.75:0;
   platforms.push({x,y,color,powerup,moving,mvDir:1,mvSpeed,mvSpeedOriginal:mvSpeed,landed:false});
 }
 
@@ -121,7 +121,7 @@ function startGame(){
 
   platforms=[];
   const spacing=100; 
-  const startY=canvas.height-50; // first platform at bottom
+  const startY=canvas.height-50; 
   for(let i=0;i<50;i++){
     createPlatform(startY - i*spacing, i===0);
   }
@@ -153,6 +153,10 @@ function update(){
       player.vy=0;
       grounded=true;
 
+      if(p.moving){
+        player.x+=p.mvDir*p.mvSpeed; // stick to moving platform
+      }
+
       if(!p.landed){
         platformCount++; level=Math.floor(platformCount/50)+1; score++;
         p.landed=true;
@@ -160,7 +164,7 @@ function update(){
       }
 
       if(p.powerup){
-        if(p.powerup==="jump") jumpPower=-14;
+        if(p.powerup==="jump") jumpPower=-20;
         if(p.powerup==="score") addScore(10,player.x,player.y-cameraY);
         if(p.powerup==="speed") playerSpeed+=1;
         p.powerup=null;
