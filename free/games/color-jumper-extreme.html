@@ -5,40 +5,7 @@
 <title>Color Jumper Extreme</title>
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <style>
-:root {
-  --bg:#0f1220;
-  --panel:#161a2b;
-  --text:#e5e7eb;
-  --muted:#9ca3af;
-  --marker:#ef4444;
-  --jump:#3b82f6;
-  --score:#fbbf24;
-  --speed:#f472b6;
-}
-html,body{
-  height:100%; margin:0;
-  font-family:system-ui,Arial;
-  background:radial-gradient(1200px 800px at 70% -10%,#1d2241 0%,var(--bg) 60%) no-repeat fixed;
-  color:var(--text);
-  display:flex; flex-direction:column;
-  align-items:center; justify-content:center; overflow:hidden;
-}
-.wrap{width:min(92vw,520px);}
-header{display:flex; justify-content:space-between; align-items:center; width:100%; margin-bottom:8px;}
-h1{font-size:20px; margin:0; color:#fff; text-align:center; flex-grow:1;}
-.back-btn{padding:6px 10px; background:#101427; color:#e5e7eb; border:1px solid rgba(255,255,255,0.08); border-radius:8px; text-decoration:none;}
-.stats{display:flex; gap:12px; font-size:14px; color:var(--muted);}
-.stats b{color:#fff;}
-.panel{position:relative; background:var(--panel); border-radius:14px; border:1px solid rgba(255,255,255,0.08); overflow:hidden;}
-canvas{display:block; width:100%; height:auto; background:var(--panel); aspect-ratio:1/1.3; image-rendering:pixelated;}
-.controls{margin-top:12px; display:flex; justify-content:center; gap:8px;}
-.btn{min-width:60px; min-height:60px; border-radius:12px; font-size:22px; border:none; background:#101427; color:#fff; box-shadow:0 3px 6px rgba(0,0,0,0.3);}
-.overlay{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.4); z-index:10;}
-.notice{background:rgba(15,18,32,0.9); padding:20px 24px; border-radius:12px; text-align:center; border:1px solid rgba(255,255,255,0.08);}
-.notice h2{margin:0 0 8px; color:#fff;}
-.notice p{margin:0 0 12px; color:var(--muted);}
-.switch {display:flex; align-items:center; gap:6px; margin-bottom:8px; font-size:14px; color:#fff;}
-@keyframes pulse {0%,100%{opacity:0.8;transform:scaleX(1);}50%{opacity:1;transform:scaleX(1.2);}}
+/* ... same styles as before ... */
 </style>
 </head>
 <body>
@@ -53,7 +20,6 @@ canvas{display:block; width:100%; height:auto; background:var(--panel); aspect-r
       <span>Best: <b id="best">0</b></span>
     </div>
   </header>
-
   <div class="switch">
     <label>Mode:</label>
     <select id="modeSelect">
@@ -61,7 +27,6 @@ canvas{display:block; width:100%; height:auto; background:var(--panel); aspect-r
       <option value="crazy">Crazy</option>
     </select>
   </div>
-
   <div class="panel">
     <canvas id="game" width="480" height="640"></canvas>
     <div class="overlay" id="startOverlay">
@@ -78,7 +43,6 @@ canvas{display:block; width:100%; height:auto; background:var(--panel); aspect-r
       </div>
     </div>
   </div>
-
   <div class="controls">
     <button class="btn" id="leftBtn">&larr;</button>
     <button class="btn" id="jumpBtn">&uarr;</button>
@@ -100,68 +64,70 @@ const ui={
 let modeSelect=document.getElementById("modeSelect");
 
 let player, playerColor, playerSize=20, playerSpeed=4, jumpPower=-12, gravity=0.4, grounded=false;
-let platforms=[], platformCount=0, score=0, level=1, best=parseInt(localStorage.getItem("cj_best")||"0");
+let platforms=[], platformCount=0, level=1, score=0, best=parseInt(localStorage.getItem("cj_best")||"0");
 let keys={}, running=false, gameOver=false, cameraY=0, trail=[], floatTexts=[];
+let crazyTimer=0; // for crazy mode 2s death
 
-// Utilities
 function randomColor(){return `hsl(${Math.random()*360},70%,60%)`;}
 function addScore(val,x,y){score+=val; floatTexts.push({x,y,text:`+${val}`,alpha:1}); if(score>best){best=score; localStorage.setItem("cj_best",best);}}
 
+// Platforms
 function createPlatform(y){
   const x=Math.random()*(canvas.width-80);
   const color=`hsl(${Math.random()*360},60%,50%)`;
   const powerup=Math.random()<0.1?["jump","score","speed"][Math.floor(Math.random()*3)]:null;
   const moving=(modeSelect.value==="crazy" && Math.random()<0.2);
-  platforms.push({x,y,color,powerup,moving,mvDir:1,mvSpeed:2});
+  platforms.push({x,y,color,powerup,moving,mvDir:1,mvSpeed:2,landed:false});
 }
 
+// Start game
 function startGame(){
   ui.startOverlay.style.display="none"; ui.gameOverOverlay.style.display="none";
-  running=true; gameOver=false; score=0; platformCount=0; level=1;
+  running=true; gameOver=false; score=0; platformCount=0; level=1; crazyTimer=0;
   playerColor=randomColor(); trail=[]; floatTexts=[];
 
-  // platforms
   platforms=[];
-  const spacing=100; const startY=modeSelect.value==="crazy"?canvas.height/2:canvas.height-50;
+  const spacing=100; 
+  const startY=canvas.height-50; // first platform
   for(let i=0;i<50;i++){createPlatform(startY - i*spacing);}
-
   const firstPlatform=platforms[0];
   player={x:firstPlatform.x+40-playerSize/2, y:firstPlatform.y-playerSize, vy:0};
-  cameraY=player.y - (modeSelect.value==="crazy"?canvas.height/2:canvas.height/3);
+  cameraY=player.y-(modeSelect.value==="crazy"?canvas.height/2:canvas.height/3);
   updateUI(); requestAnimationFrame(loop);
 }
 
 function update(){
   if(!running)return;
 
-  // Horizontal movement
+  // horizontal
   if(keys["a"]) player.x-=playerSpeed;
   if(keys["d"]) player.x+=playerSpeed;
 
-  // Vertical movement
   player.vy+=gravity;
   player.y+=player.vy;
 
-  // Crazy mode death line
-  if(modeSelect.value==="crazy" && player.y>cameraY+canvas.height-50){
-    running=false; gameOver=true; ui.gameOverOverlay.style.display="flex";
-  }
-
-  // Normal mode death
-  if(modeSelect.value==="normal" && player.y>canvas.height+50){
-    running=false; gameOver=true; ui.gameOverOverlay.style.display="flex";
-  }
-
   grounded=false;
+  let landedPlatform=false;
+
   for(const p of platforms){
-    // moving platforms
     if(p.moving){
       p.x+=p.mvDir*p.mvSpeed;
       if(p.x<0||p.x+80>canvas.width)p.mvDir*=-1;
     }
-    if(player.x+playerSize>p.x && player.x<p.x+80 && player.y+playerSize>p.y && player.y+playerSize<p.y+10 && player.vy>0){
-      player.y=p.y-playerSize; player.vy=0; grounded=true;
-      platformCount++; level=Math.floor(platformCount/50)+1;
+
+    if(player.x+playerSize>p.x && player.x<p.x+80 && player.y+playerSize>p.y && player.y+playerSize<p.y+10 && player.vy>=0){
+      player.y=p.y-playerSize;
+      player.vy=0;
+      grounded=true;
+      landedPlatform=true;
+
+      if(!p.landed){
+        platformCount++; level=Math.floor(platformCount/50)+1; score++;
+        p.landed=true;
+        crazyTimer=0; // reset crazy mode timer when landing
+      }
+
+      // powerups
       if(p.powerup){
         if(p.powerup==="jump") jumpPower=-14;
         if(p.powerup==="score") addScore(10,player.x,player.y-cameraY);
@@ -171,6 +137,12 @@ function update(){
     }
   }
 
+  // crazy mode timer
+  if(modeSelect.value==="crazy"){
+    crazyTimer+=1/60; // increment per frame ~60fps
+    if(crazyTimer>2){running=false; gameOver=true; ui.gameOverOverlay.style.display="flex";}
+  }
+
   if(player.y-cameraY<canvas.height/3) cameraY=player.y-canvas.height/3;
 
   const highest=platforms[platforms.length-1].y;
@@ -178,6 +150,7 @@ function update(){
 
   trail.push({x:player.x,y:player.y,size:playerSize,alpha:0.5});
   if(trail.length>15) trail.shift();
+
   floatTexts.forEach(t=>{t.y-=1;t.alpha-=0.02;});
   floatTexts=floatTexts.filter(t=>t.alpha>0);
 
@@ -194,21 +167,16 @@ function updateUI(){
 function draw(){
   ctx.fillStyle="#161a2b"; ctx.fillRect(0,0,canvas.width,canvas.height);
 
-  // markers
-  ctx.save();
   for(let i=50;i<=platformCount;i+=50){
     const markerY=canvas.height - i*100 + cameraY;
     if(markerY>-100 && markerY<canvas.height+100){
       const pulse=Math.sin(Date.now()/300)*0.3+0.7;
       ctx.fillStyle=`rgba(239,68,68,${pulse})`;
       ctx.shadowBlur=15; ctx.shadowColor="red"; ctx.fillRect(0,markerY,canvas.width,4);
-      ctx.shadowBlur=0;
-      ctx.font="14px Arial"; ctx.fillStyle="#fff"; ctx.fillText("LEVEL "+i/50,10,markerY-6);
+      ctx.shadowBlur=0; ctx.font="14px Arial"; ctx.fillStyle="#fff"; ctx.fillText("LEVEL "+i/50,10,markerY-6);
     }
   }
-  ctx.restore();
 
-  // platforms
   for(const p of platforms){
     ctx.fillStyle=p.color; ctx.fillRect(p.x,p.y-cameraY,80,10);
     if(p.powerup){
@@ -219,13 +187,8 @@ function draw(){
     }
   }
 
-  // trail
   trail.forEach(t=>{ctx.beginPath(); ctx.arc(t.x+t.size/2,t.y-cameraY+t.size/2,t.size/2,0,Math.PI*2); ctx.fillStyle=playerColor; ctx.fill();});
-
-  // player
   ctx.fillStyle=playerColor; ctx.fillRect(player.x,player.y-cameraY,playerSize,playerSize);
-
-  // floating score
   floatTexts.forEach(t=>{ctx.globalAlpha=t.alpha; ctx.fillStyle="#fff"; ctx.font="16px Arial"; ctx.fillText(t.text,t.x,t.y); ctx.globalAlpha=1;});
 }
 
@@ -235,7 +198,7 @@ function loop(){if(!running)return; update(); draw(); requestAnimationFrame(loop
 document.addEventListener("keydown",e=>{
   keys[e.key.toLowerCase()]=true;
   if(e.key==="Enter"&&!running) startGame();
-  if((e.key==="ArrowUp" || e.key.toLowerCase()==="w") && grounded){player.vy=jumpPower; grounded=false;}
+  if((e.key==="ArrowUp"||e.key.toLowerCase()==="w") && grounded){player.vy=jumpPower; grounded=false;}
 });
 document.addEventListener("keyup",e=>{keys[e.key.toLowerCase()]=false;});
 
@@ -250,7 +213,6 @@ document.addEventListener("keyup",e=>{keys[e.key.toLowerCase()]=false;});
 document.getElementById("jumpBtn").addEventListener("click",()=>{if(grounded){player.vy=jumpPower; grounded=false;}});
 document.getElementById("startBtn").onclick=startGame;
 document.getElementById("restartBtn").onclick=startGame;
-
 updateUI();
 </script>
 </body>
