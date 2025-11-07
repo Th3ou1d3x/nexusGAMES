@@ -110,7 +110,7 @@ function createPlatform(y, isFirst=false){
   const color=`hsl(${Math.random()*360},60%,50%)`;
   const powerup=isFirst?null:(Math.random()<0.1?["jump","score","speed"][Math.floor(Math.random()*3)]:null);
   const moving=isFirst?false:(Math.random()<0.2);
-  const mvSpeed=moving?0.75:0;
+  const mvSpeed=moving?0.375:0; // half original moving speed
   platforms.push({x,y,color,powerup,moving,mvDir:1,mvSpeed,mvSpeedOriginal:mvSpeed,landed:false});
 }
 
@@ -171,31 +171,28 @@ function update(){
   }
 
   // Die if off-screen
-if(
-    player.y > canvas.height + playerSize || 
-    player.y < 0 || 
-    player.x + playerSize < 0 || 
-    player.x > canvas.width
-){
-    if(modeSelect.value === "crazy" || player.y > canvas.height + playerSize){
-        running = false;
-        gameOver = true;
-        ui.gameOverOverlay.style.display = "flex";
-    }
-}
+  if(player.y>canvas.height+playerSize || player.y<0 || player.x+playerSize<0 || player.x>canvas.width){
+      if(modeSelect.value === "crazy" || player.y>canvas.height+playerSize){
+          running=false; gameOver=true; ui.gameOverOverlay.style.display="flex";
+      }
+  }
 
-// Crazy mode timer reset when landing
-if(modeSelect.value === "crazy"){
-    crazyTimer += 1/60;
-    if(crazyTimer > 2){
-        running = false;
-        gameOver = true;
-        ui.gameOverOverlay.style.display = "flex";
-    }
-} else {
-    crazyTimer = 0;
-}
-updateUI()
+  if(modeSelect.value==="crazy"){ crazyTimer+=1/60; if(crazyTimer>2){running=false; gameOver=true; ui.gameOverOverlay.style.display="flex";}}
+  else { crazyTimer=0; }
+
+  if(player.y-cameraY<canvas.height/3) cameraY=player.y-canvas.height/3;
+
+  const highest=platforms[platforms.length-1].y;
+  if(canvas.height-highest-cameraY<800) createPlatform(highest-100);
+
+  trail.push({x:player.x,y:player.y,size:playerSize,alpha:0.5});
+  trail.forEach(t=>{ t.size*=0.95; t.alpha*=0.95; });
+  trail=trail.filter(t=>t.alpha>0.02);
+
+  floatTexts.forEach(t=>{t.y-=1;t.alpha-=0.02;});
+  floatTexts=floatTexts.filter(t=>t.alpha>0);
+
+  updateUI();
 }
 
 function updateUI(){
