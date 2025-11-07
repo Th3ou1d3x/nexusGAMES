@@ -120,7 +120,7 @@ function startGame(){
 
   platforms=[];
   const spacing=100; 
-  const startY=canvas.height-100; 
+  const startY=canvas.height-50; // first platform at bottom
   for(let i=0;i<50;i++){createPlatform(startY - i*spacing);}
   const firstPlatform=platforms[0];
   player={x:firstPlatform.x+40-playerSize/2, y:firstPlatform.y-playerSize, vy:0};
@@ -165,10 +165,9 @@ function update(){
     }
   }
 
-  if(modeSelect.value==="crazy"){
-    crazyTimer+=1/60; 
-    if(crazyTimer>2){running=false; gameOver=true; ui.gameOverOverlay.style.display="flex";}
-  }
+  // death conditions
+  if(player.y>canvas.height+playerSize){ running=false; gameOver=true; ui.gameOverOverlay.style.display="flex";} // normal
+  if(modeSelect.value==="crazy"){ crazyTimer+=1/60; if(crazyTimer>2){running=false; gameOver=true; ui.gameOverOverlay.style.display="flex";}}
 
   if(player.y-cameraY<canvas.height/3) cameraY=player.y-canvas.height/3;
 
