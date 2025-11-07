@@ -98,7 +98,7 @@ const ui={
 };
 const modeSelect=document.getElementById("modeSelect");
 
-let player,playerColor,playerSize=20,playerSpeed=4,jumpPower=-20,gravity=0.4,grounded=false;
+let player,playerColor,playerSize=20,playerSpeed=4,jumpPower=-15,gravity=0.4,grounded=false;
 let platforms=[],platformCount=0,level=1,score=0,best=parseInt(localStorage.getItem("cj_best")||"0");
 let keys={},running=false,gameOver=false,cameraY=0,trail=[],floatTexts=[],crazyTimer=0;
 
@@ -153,9 +153,7 @@ function update(){
       player.vy=0;
       grounded=true;
 
-      if(p.moving){
-        player.x+=p.mvDir*p.mvSpeed; // stick to moving platform
-      }
+      if(p.moving){ player.x+=p.mvDir*p.mvSpeed; }
 
       if(!p.landed){
         platformCount++; level=Math.floor(platformCount/50)+1; score++;
@@ -164,7 +162,7 @@ function update(){
       }
 
       if(p.powerup){
-        if(p.powerup==="jump") jumpPower=-20;
+        if(p.powerup==="jump") jumpPower=-15;
         if(p.powerup==="score") addScore(10,player.x,player.y-cameraY);
         if(p.powerup==="speed") playerSpeed+=1;
         p.powerup=null;
@@ -172,7 +170,9 @@ function update(){
     }
   }
 
-  if(player.y>canvas.height+playerSize){ running=false; gameOver=true; ui.gameOverOverlay.style.display="flex";}
+  // Die if off-screen
+  if(player.y>canvas.height+playerSize || player.y<0 || player.x+playerSize<0 || player.x>canvas.width){ running=false; gameOver=true; ui.gameOverOverlay.style.display="flex";}
+
   if(modeSelect.value==="crazy"){ crazyTimer+=1/60; if(crazyTimer>2){running=false; gameOver=true; ui.gameOverOverlay.style.display="flex";}}
 
   if(player.y-cameraY<canvas.height/3) cameraY=player.y-canvas.height/3;
