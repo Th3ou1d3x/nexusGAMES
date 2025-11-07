@@ -109,7 +109,7 @@ function createPlatform(y){
   const x=Math.random()*(canvas.width-80);
   const color=`hsl(${Math.random()*360},60%,50%)`;
   const powerup=Math.random()<0.1?["jump","score","speed"][Math.floor(Math.random()*3)]:null;
-  const moving=(modeSelect.value==="crazy" && Math.random()<0.2);
+  const moving=Math.random()<0.2;
   platforms.push({x,y,color,powerup,moving,mvDir:1,mvSpeed:2,landed:false});
 }
 
@@ -120,7 +120,7 @@ function startGame(){
 
   platforms=[];
   const spacing=100; 
-  const startY=canvas.height-50; 
+  const startY=canvas.height-100; 
   for(let i=0;i<50;i++){createPlatform(startY - i*spacing);}
   const firstPlatform=platforms[0];
   player={x:firstPlatform.x+40-playerSize/2, y:firstPlatform.y-playerSize, vy:0};
@@ -138,7 +138,6 @@ function update(){
   player.y+=player.vy;
 
   grounded=false;
-  let landedPlatform=false;
 
   for(const p of platforms){
     if(p.moving){
@@ -150,7 +149,6 @@ function update(){
       player.y=p.y-playerSize;
       player.vy=0;
       grounded=true;
-      landedPlatform=true;
 
       if(!p.landed){
         platformCount++; level=Math.floor(platformCount/50)+1; score++;
@@ -175,7 +173,7 @@ function update(){
   if(player.y-cameraY<canvas.height/3) cameraY=player.y-canvas.height/3;
 
   const highest=platforms[platforms.length-1].y;
-  if(canvas.height-highest-cameraY<800) createPlatform(platformCount*100);
+  if(canvas.height-highest-cameraY<800) createPlatform(highest-100);
 
   trail.push({x:player.x,y:player.y,size:playerSize,alpha:0.5});
   if(trail.length>15) trail.shift();
