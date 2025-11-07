@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Color Jumper Extreme</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<style>
+:root {
+  --bg:#0f1220;
+  --panel:#161a2b;
+  --text:#e5e7eb;
+  --muted:#9ca3af;
+  --marker:#ef4444;
+  --jump:#3b82f6;
+  --score:#fbbf24;
+  --speed:#f472b6;
+}
+*{box-sizing:border-box;}
+html,body{
+  height:100%;margin:0;
+  font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Arial;
+  background:radial-gradient(1200px 800px at 70% -10%, #1d2241 0%, var(--bg) 60%) no-repeat fixed;
+  color:var(--text);
+  display:flex;flex-direction:column;align-items:center;padding:16px;
+}
+.wrap{width:min(92vw,520px);}
+header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+h1{font-size:20px;margin:0;color:#fff;text-align:center;flex-grow:1;}
+.stats{display:flex;gap:12px;align-items:center;font-size:14px;color:var(--muted);}
+.stats b{color:#fff;}
+.panel{
+  position:relative;background:var(--panel);
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:14px;overflow:hidden;
+}
+canvas{display:block;width:100%;height:auto;background:var(--panel);image-rendering:pixelated;aspect-ratio:1/1;}
+.controls{display:flex;flex-direction:row;justify-content:center;gap:6px;margin-top:16px;}
+.btn{min-width:48px;min-height:48px;font-size:20px;background:#101427;color:var(--text);border:1px solid rgba(255,255,255,0.08);border-radius:10px;cursor:pointer;}
+.overlay{
+  position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,0.3);
+  opacity:0;pointer-events:none;
+  transform:scale(0.95);
+  transition:opacity 0.5s ease,transform 0.5s ease;
+}
+.overlay.active{opacity:1;pointer-events:auto;transform:scale(1);}
+.notice{
+  background:rgba(15,18,32,0.9);
+  border:1px solid rgba(255,255,255,0.08);
+  padding:18px 16px;
+  border-radius:12px;
+  text-align:center;
+  max-width:90%;
+}
+.notice h2{margin:0 0 6px;font-size:20px;color:#fff;}
+.notice p{margin:0 0 12px;color:var(--muted);font-size:14px;}
+.back-btn{text-decoration:none;color:#e5e7eb;padding:6px 10px;background:#101427;border-radius:8px;border:1px solid rgba(255,255,255,0.08);}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <a href="/free" class="back-btn">&larr; Back</a>
+  <h1>Color Jumper Extreme</h1>
+  <div class="stats">
+    <span>Score: <b id="score">0</b></span>
+    <span>Best: <b id="best">0</b></span>
+  </div>
+</header>
+
+<div class="panel">
+  <canvas id="game" width="480" height="480"></canvas>
+
+  <div class="overlay active" id="startOverlay">
+    <div class="notice">
+      <h2>Ready?</h2>
+      <p>Press <b>Enter</b> or tap <b>Start</b> to play.</p>
+      <button id="startBtn" class="btn">Start</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="gameOverOverlay">
+    <div class="notice">
+      <h2>Game Over</h2>
+      <button id="restartBtn" class="btn">Restart</button>
+    </div>
+  </div>
+</div>
+
+<div class="controls">
+  <button class="btn" id="leftBtn">&larr;</button>
+  <button class="btn" id="jumpBtn">&#8679;</button>
+  <button class="btn" id="rightBtn">&rarr;</button>
+</div>
+</div>
+
+<script>
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+const STORAGE_KEY="colorJumper_best";
+
+const playerSize=30;
+const platformWidth=100;
+const platformHeight=15;
+const gravity=0.5;
+const jumpPower=-15;
+const moveSpeed=5;
+
+let playerColors=["#10b981","#f87171","#3b82f6","#fbbf24","#a78bfa","#f472b6"];
+let playerColor="#10b981";
+let player, platforms, score, best, gameOver, running, cameraY=0, platformCount=0;
+let grounded=false, speedBoostTimer=0;
+let keys={}, comboMultiplier=1, comboTimer=0, trail=[], floatScores=[];
+
+function randomColor(){const colors=["#3b82f6","#f87171","#fbbf24","#34d399","#a78bfa"];return colors[Math.floor(Math.random()*colors.length)];}
+function randomPowerup(){
+  const r=Math.random();
+  if(r<0.05) return "jump";
+  if(r<0.1) return "score";
+  if(r<0.15) return "speed";
+  return null;
+}
+
+function reset(){
+  platforms=[];
+  platformCount=0;
+  for(let i=0;i<6;i++){
+    platforms.push({x:Math.random()*(canvas.width-platformWidth),y:canvas.height-(i*80)-50,color:randomColor(),vx:Math.random()<0.3? (Math.random()*2-1) :0,powerup:randomPowerup(),passed:false});
+    platformCount++;
+  }
+  playerColor=playerColors[Math.floor(Math.random()*playerColors.length)];
+  player={x:platforms[0].x+platformWidth/2-playerSize/2,y:platforms[0].y-playerSize,vx:0,vy:0};
+  score=0; gameOver=false; cameraY=0; grounded=false; speedBoostTimer=0; comboMultiplier=1; comboTimer=0; trail=[]; floatScores=[];
+}
+
+function fadeOutOverlay(el){
+  el.classList.remove("active");
+  setTimeout(()=>{el.style.display="none";},500);
+}
+function fadeInOverlay(el){
+  el.style.display="flex";
+  setTimeout(()=>el.classList.add("active"),10);
+}
+
+function startGame(){
+  best=parseInt(localStorage.getItem(STORAGE_KEY)||"0",10);
+  reset(); running=true;
+  fadeOutOverlay(document.getElementById("startOverlay"));
+  fadeOutOverlay(document.getElementById("gameOverOverlay"));
+  requestAnimationFrame(loop); updateUI();
+}
+
+function endGame(){
+  running=false;gameOver=true;
+  if(score>best){best=score;localStorage.setItem(STORAGE_KEY,best);}
+  updateUI();
+  fadeInOverlay(document.getElementById("gameOverOverlay"));
+}
+function updateUI(){
+  document.getElementById("score").textContent=score;
+  document.getElementById("best").textContent=best;
+}
+
+function addPlatform(){
+  const minY=Math.min(...platforms.map(p=>p.y));
+  const y=minY-100;
+  const x=Math.random()*(canvas.width-platformWidth);
+  platforms.push({x,y,color:randomColor(),vx:Math.random()<0.3? (Math.random()*2-1) :0,powerup:randomPowerup(),passed:false});
+  platformCount++;
+}
+
+function addFloatScore(x,y,amount,color="#fff"){
+  floatScores.push({x,y,amount,alpha:1,vy:-1,color});
+}
+
+function handleInput(){
+  player.vx=0;
+  if(keys["arrowleft"]||keys["a"]) player.vx=-moveSpeed*(speedBoostTimer>0?1.5:1);
+  if(keys["arrowright"]||keys["d"]) player.vx=moveSpeed*(speedBoostTimer>0?1.5:1);
+  if((keys["arrowup"]||keys["w"]||keys[" "])&&grounded){player.vy=jumpPower;grounded=false;}
+}
+
+function update(){
+  handleInput(); grounded=false;
+  if(speedBoostTimer>0)speedBoostTimer--;
+  if(comboTimer>0)comboTimer--; else comboMultiplier=1;
+
+  player.vy+=gravity; player.y+=player.vy;
+  player.x+=player.vx;
+  if(player.x<0)player.x=0; if(player.x+playerSize>canvas.width)player.x=canvas.width-playerSize;
+
+  trail.push({x:player.x,y:player.y,alpha:1,size:playerSize});
+  trail=trail.map(t=>({...t,alpha:t.alpha-0.03,size:t.size*0.97})).filter(t=>t.alpha>0);
+
+  platforms.forEach(p=>{
+    if(p.vx){p.x+=p.vx;if(p.x<0||p.x+platformWidth>canvas.width)p.vx*=-1;}
+    if(!p.passed && player.y < p.y){score+=1; addFloatScore(player.x+playerSize/2, p.y-cameraY, "+1"); p.passed=true;}
+    if(player.vy>0 && player.x+playerSize>p.x && player.x<p.x+platformWidth && player.y+playerSize>p.y && player.y+playerSize<p.y+platformHeight){
+      player.y=p.y-playerSize; player.vy=0; grounded=true;
+      if(p.powerup){
+        let bonus=0; let color="#fff";
+        if(p.powerup==="jump"){player.vy=jumpPower*1.5;color="var(--jump)";}
+        if(p.powerup==="score"){bonus=5*comboMultiplier;score+=bonus;color="var(--score)";}
+        if(p.powerup==="speed"){speedBoostTimer=100;color="var(--speed)";}
+        if(bonus>0)addFloatScore(player.x+playerSize/2, player.y-cameraY, `+${bonus}`,color);
+        comboMultiplier++; comboTimer=200;
+        p.powerup=null;
+      } else comboMultiplier=1;
+      addPlatform();
+    }
+  });
+
+  floatScores=floatScores.map(fs=>({...fs,y:fs.y+fs.vy,alpha:fs.alpha-0.02})).filter(fs=>fs.alpha>0);
+
+  if(player.y-cameraY<canvas.height/2) cameraY=player.y-canvas.height/2;
+  if(player.y-cameraY>canvas.height) endGame();
+  platforms=platforms.filter(p=>p.y-cameraY<canvas.height+50);
+
+  updateUI();
+}
+
+function draw(){
+  ctx.fillStyle="#161a2b"; ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // 🔥 Glowing & pulsing red markers every 50 platforms
+  const pulse = (Math.sin(Date.now()/500)+1)/2; // 0–1 sine wave
+  ctx.shadowColor = "#ef4444";
+  ctx.shadowBlur = 20 + pulse*20;
+  ctx.globalAlpha = 0.5 + pulse*0.5;
+  ctx.lineWidth = 3;
+  for(let i=50;i<=platformCount;i+=50){
+    const markerY = platforms[0] ? platforms[0].y - ((i-1)*100) - cameraY : 0;
+    if(markerY < canvas.height && markerY > -50){
+      ctx.strokeStyle="#ef4444";
+      ctx.beginPath();
+      ctx.moveTo(0, markerY);
+      ctx.lineTo(canvas.width, markerY);
+      ctx.stroke();
+    }
+  }
+  ctx.globalAlpha=1; ctx.shadowBlur=0;
+
+  trail.forEach(t=>{
+    ctx.beginPath();
+    ctx.arc(t.x+t.size/2, t.y-cameraY+t.size/2, t.size/2, 0, Math.PI*2);
+    ctx.fillStyle=`rgba(${hexToRgb(playerColor)},${t.alpha*0.5})`;
+    ctx.fill();
+  });
+  platforms.forEach(p=>{
+    ctx.fillStyle=p.color; ctx.fillRect(p.x,p.y-cameraY,platformWidth,platformHeight);
+    if(p.powerup){
+      if(p.powerup==="jump") ctx.fillStyle="var(--jump)";
+      else if(p.powerup==="score") ctx.fillStyle="var(--score)";
+      else if(p.powerup==="speed") ctx.fillStyle="var(--speed)";
+      ctx.fillRect(p.x+platformWidth/2-5,p.y-cameraY-10,10,10);
+    }
+  });
+  ctx.fillStyle=playerColor; ctx.fillRect(player.x,player.y-cameraY,playerSize,playerSize);
+  floatScores.forEach(fs=>{
+    ctx.fillStyle=`${fs.color}`; ctx.globalAlpha=fs.alpha;
+    ctx.font="16px Arial"; ctx.fillText(fs.amount,fs.x,fs.y);
+    ctx.globalAlpha=1;
+  });
+  if(comboMultiplier>1){ctx.fillStyle="yellow";ctx.font="16px Arial";ctx.fillText(`x${comboMultiplier} Combo!`,10,20);}
+}
+
+function hexToRgb(hex){
+  const bigint = parseInt(hex.slice(1),16);
+  const r=(bigint>>16)&255, g=(bigint>>8)&255, b=bigint&255;
+  return `${r},${g},${b}`;
+}
+function loop(){if(!running)return;update();draw();requestAnimationFrame(loop);}
+
+document.addEventListener("keydown",e=>{keys[e.key.toLowerCase()]=true;if(e.key==="Enter" && (!running||gameOver)) startGame();});
+document.addEventListener("keyup",e=>{keys[e.key.toLowerCase()]=false;});
+
+["leftBtn","rightBtn"].forEach(id=>{
+  const key=id==="leftBtn"?"a":"d";
+  const btn=document.getElementById(id);
+  btn.addEventListener("touchstart",()=>keys[key]=true);
+  btn.addEventListener("touchend",()=>keys[key]=false);
+  btn.addEventListener("mousedown",()=>keys[key]=true);
+  btn.addEventListener("mouseup",()=>keys[key]=false);
+});
+document.getElementById("jumpBtn").addEventListener("click",()=>{if(grounded){player.vy=jumpPower;grounded=false;}});
+
+document.getElementById("startBtn").onclick=startGame;
+document.getElementById("restartBtn").onclick=startGame;
+
+updateUI();
+</script>
+</body>
+</html>
